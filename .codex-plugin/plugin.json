@@ -1,0 +1,41 @@
+{
+  "name": "stockwatcher",
+  "version": "3.6.1",
+  "description": "Live stock-market dashboard and heat map in the browser, steered from the chat: indices, sectors, themes, companies, investor 13F portfolios, r/wallstreetbets, and questions about companies researched once and remembered. Learns your portfolio and usual requests. No API keys. By AI Realist.",
+  "author": {
+    "name": "Maria Sukhareva",
+    "url": "https://airealist.org"
+  },
+  "homepage": "https://github.com/ktoetotam/stockwatcher-plugin",
+  "repository": "https://github.com/ktoetotam/stockwatcher-plugin",
+  "keywords": [
+    "stocks",
+    "market",
+    "dashboard",
+    "heat-map",
+    "portfolio",
+    "13f",
+    "wallstreetbets"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Stockwatcher",
+    "shortDescription": "Live stock dashboard and heat map",
+    "longDescription": "Ask for an index, a sector, a theme, companies, an investor's 13F portfolio or what r/wallstreetbets is discussing, and a live dashboard with a heat map opens in the browser. It remembers your portfolio, your usual requests and what it has researched, all on your computer. Needs Node.js 18 or newer; no API keys and no accounts. Not investment advice.",
+    "developerName": "Maria Sukhareva, AI Realist",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive"
+    ],
+    "websiteURL": "https://airealist.org/",
+    "defaultPrompt": [
+      "Show me the S&P 500 heat map",
+      "This is my portfolio: 10 AAPL, 5 MSFT, 20 nvidia",
+      "Show Warren Buffett's portfolio"
+    ],
+    "brandColor": "#F68A6B",
+    "composerIcon": "./assets/logo.svg",
+    "logo": "./assets/logo.svg",
+    "screenshots": []
+  }
+}

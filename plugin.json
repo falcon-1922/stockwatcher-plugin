@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "stockwatcher",
+  "version": "3.6.1",
+  "description": "Live stock-market dashboard and heat map in the browser, steered from the chat: indices, sectors, themes, companies, investor 13F portfolios, r/wallstreetbets, and questions about companies researched once and remembered. Learns your portfolio and usual requests. No API keys. By AI Realist.",
+  "author": {
+    "name": "Maria Sukhareva",
+    "url": "https://airealist.org"
+  },
+  "homepage": "https://github.com/ktoetotam/stockwatcher-plugin",
+  "repository": "https://github.com/ktoetotam/stockwatcher-plugin",
+  "keywords": [
+    "stocks",
+    "market",
+    "dashboard",
+    "heat-map",
+    "portfolio",
+    "13f",
+    "wallstreetbets"
+  ]
+}

@@ -22,15 +22,34 @@ investment advice.
 
 ## Install
 
+The same plugin works in Claude Code and in Codex.
+
+**Claude Code** (type these in the chat):
+
 ```bash
 /plugin marketplace add ktoetotam/stockwatcher-plugin
 /plugin install stockwatcher@stockwatcher
 ```
 
+**Codex** (type these in a terminal, then start a new chat):
+
+```bash
+codex plugin marketplace add ktoetotam/stockwatcher-plugin
+codex plugin add stockwatcher@stockwatcher
+```
+
+In the Codex or ChatGPT desktop app you can instead add the marketplace with the first
+command and install Stockwatcher from the Plugins Directory.
+
+Then ask, for example, "show me the S&P 500" or "this is my portfolio: 10 AAPL, 5 MSFT".
+
 ## Layout
 
-- `.claude-plugin/plugin.json` — the plugin manifest.
-- `.claude-plugin/marketplace.json` — lets this repository be added as a marketplace.
+- `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` — the Claude Code
+  plugin, and what lets this repository be added as a marketplace there.
+- `.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json` — the same for Codex.
+- `plugin.json` — the portable manifest (Agent Plugins format) for other apps that read it.
+- `assets/logo.svg` — the icon shown in Codex's plugin list.
 - `skills/stockwatcher/` — the skill: `SKILL.md`, the dashboard page, the server and
   command scripts, and the shipped data (stock list, index members, themes).
 
