@@ -36,7 +36,7 @@ export function loadIndex({ bundledPath, cachePath, fetchImpl = fetch, log = () 
   let running = null;
   const refresh = () => running || (running = fetchIndex(fetchImpl).then(rows => {
     snap = { at: Date.now(), rows };
-    if (cachePath) writeSnapshot(cachePath, snap);
+    if (cachePath) { try { writeSnapshot(cachePath, snap); } catch (e) { log('index not saved: ' + e.message); } }
     log('index refreshed: ' + rows.length + ' stocks');
     return snap;
   }, e => { log('index refresh failed, keeping the old one: ' + e.message); return snap; }).finally(() => { running = null; }));

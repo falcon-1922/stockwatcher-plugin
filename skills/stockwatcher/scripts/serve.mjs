@@ -12,6 +12,7 @@ import { yahooState } from './lib/prices.mjs';
 import { createSocial } from './lib/social.mjs';
 import { createPortfolios } from './lib/portfolio.mjs';
 import { createMemory } from './lib/memory.mjs';
+import { createPromo } from './lib/promo.mjs';
 import { homeDir, dataDir, DEFAULT_PORT } from './lib/home.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -35,12 +36,17 @@ let idle;
 const touch = () => { clearTimeout(idle); idle = setTimeout(() => quit('idle'), IDLE_MS); };
 process.on('SIGTERM', () => quit('SIGTERM'));
 process.on('SIGINT', () => quit('SIGINT'));
+// A fault in one background task (a feed answering nonsense, a disk that is full) is logged;
+// it must not take the dashboard down.
+process.on('unhandledRejection', e => log('background task failed: ' + (e && e.stack || e)));
+process.on('uncaughtException', e => log('unexpected error: ' + (e && e.stack || e)));
 // What must survive (research memory, the person's portfolios, windows) lives in the data
 // folder, not the cache: the OS may empty caches.
 const data = dataDir();
 const server = createServer({
   pagePath: join(root, 'assets', 'dashboard.html'), index, themes, prices, log, viewsFile: join(data, 'views.json'),
-  memory: createMemory(join(data, 'memory.json')),
+  memory: createMemory(join(data, 'memory.json'), undefined, log),
+  promo: createPromo({ fetchImpl, log, file: join(home, 'promo.json'), bundledPath: join(root, 'data', 'promo.json'), offline: process.env.STOCKWATCHER_OFFLINE === '1' }),
   social: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createSocial({ fetchImpl, log }),
   portfolios: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createPortfolios({ fetchImpl, log, file: join(home, 'portfolios.json') }),
   onActivity: touch,

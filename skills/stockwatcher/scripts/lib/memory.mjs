@@ -3,12 +3,15 @@
 //   API) and when. The same question next time is answered from here, with no research; a
 //   related one gets the old method as a hint.
 // - portfolios: the person's own portfolios ("this is my portfolio: 10 AAPL, 5 MSFT").
-import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+// - asked: how often each request was made, so the page can offer the person's usual ones.
+// Everything stays on this computer.
+import { readFileSync } from 'node:fs';
 import { normalise } from './resolve.mjs';
+import { saveFile } from './store.mjs';
 
 export const FRESH_DAYS = 30;           // a remembered answer older than this is researched again
 const DAY_MS = 86_400_000;
+const MAX_ASKED = 60;                   // requests counted; the least used drop out
 
 // Words that do not change what a question is about.
 const FILLER = new Set(('a an the of in on for to and or with by from about who whom which what whats anyone anybody everyone '
@@ -45,17 +48,14 @@ export function similarity(a, b) {
   return hits / (A.length + B.length - hits);
 }
 
-export function createMemory(file, now = () => Date.now()) {
-  let data = { research: {}, portfolios: {} };
+export function createMemory(file, now = () => Date.now(), log = () => {}) {
+  let data = { research: {}, portfolios: {}, asked: {} };
   if (file) { try { data = { ...data, ...JSON.parse(readFileSync(file, 'utf8')) }; } catch { /* first run */ } }
-  const save = () => {
-    if (!file) return;
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file + '.tmp', JSON.stringify(data, null, 1));
-    renameSync(file + '.tmp', file);
-  };
+  const save = () => { if (file) saveFile(file, JSON.stringify(data, null, 1), log); };
   const key = q => words(q).join(' ');
   const age = e => Math.floor((now() - e.at) / DAY_MS);
+  // Asked often and lately counts most: a habit from months ago fades.
+  const weight = e => e.n / (1 + age(e) / 30);
 
   return {
     // A remembered answer to this question, if one is close enough and fresh enough.
@@ -82,7 +82,23 @@ export function createMemory(file, now = () => Date.now()) {
       delete data.research[k]; save(); return true;
     },
     savePortfolio(name, items) { data.portfolios[name] = { items, at: now() }; save(); },
+    removePortfolio(name) { delete data.portfolios[name]; save(); },
     portfolio(name) { return data.portfolios[name] || null; },
+    // Counts a request the person made. Rephrasings ("show me the banks", "banks") count as one;
+    // the latest wording is the one offered back.
+    noteAsked(q) {
+      const text = String(q || '').replace(/\s+/g, ' ').trim(), k = key(text);
+      if (!k || text.length > 80) return;
+      const e = data.asked[k];
+      data.asked[k] = { q: text, n: (e ? e.n : 0) + 1, at: now() };
+      const keys = Object.keys(data.asked);
+      if (keys.length > MAX_ASKED) keys.sort((a, b) => weight(data.asked[a]) - weight(data.asked[b])).slice(0, keys.length - MAX_ASKED).forEach(x => delete data.asked[x]);
+      save();
+    },
+    // The person's usual requests, most used first.
+    frequent(limit = 4) {
+      return Object.values(data.asked).sort((a, b) => weight(b) - weight(a) || b.at - a.at).slice(0, limit).map(e => ({ q: e.q, n: e.n }));
+    },
     all() { return data; },
   };
 }

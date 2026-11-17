@@ -1,28 +1,46 @@
 // The person's own portfolios: "this is my portfolio: 10 AAPL, 5 MSFT, 20 nvidia" saves it,
-// "show my portfolio" brings it back. Several can be kept by name ("my retirement portfolio").
+// "show my portfolio" brings it back. It can be changed a piece at a time: "add 5 TSLA to my
+// portfolio", "I bought 3 more nvidia", "remove KO from my portfolio", "I sold 2 AAPL".
+// Several can be kept by name ("my retirement portfolio").
 // With quantities, blocks are sized by what each position is worth; without, by market value.
 import { lookupHelpers, stockOf, splitQuery } from './resolve.mjs';
 import { TO_GICS } from './indices.mjs';
 
 const KIND = '(?:portfolio|holdings|positions|stocks|shares|investments)';
+const NAMED = '(?:([a-z][\\w-]{0,20})\\s+)?' + KIND;
 const NOT_NAMES = new Set(['own', 'current', 'whole', 'entire', 'stock', 'new', 'full', 'real', 'personal', 'investment', 'actual', 'updated']);
-const MY = new RegExp('\\bmy\\s+(?:([a-z][\\w-]{0,20})\\s+)?' + KIND + '\\b', 'i');
+const MY = new RegExp('\\bmy\\s+' + NAMED + '\\b', 'i');
+const ADD = new RegExp('\\b(?:add|include|put)\\s+(.+?)\\s+(?:to|in|into)\\s+my\\s+' + NAMED + '\\b', 'i');
+const REMOVE = new RegExp('\\b(?:remove|drop|delete|take)\\s+(.+?)\\s+(?:from|out of)\\s+my\\s+' + NAMED + '\\b', 'i');
+const SAVE_AS = new RegExp('\\bsave\\s+(.+?)\\s+as\\s+my\\s+' + NAMED, 'i');
 const SAYS = /^\s*(?:is|are|:|=|-|–|includes?|contains?|consists of|now is|looks like)\s*(.+)$/i;
+const HOLDING = /\d|[A-Z]{2,}/;          // a quantity or a ticker: "I own a dog" is not a portfolio
 
-// → null, or { name, phrase, content } where content is null for "show my portfolio".
+// → null, or { name, phrase, content, op }. `content` is null for "show my portfolio";
+// `op` says what to do with it: 'set' (this is the portfolio), 'add' or 'remove'.
 export function parseMine(q) {
   const s = String(q || '');
-  let m = /\bi\s+(?:own|hold|have)\s+(.+)$/i.exec(s);                    // "I own 10 AAPL and 5 MSFT"
-  if (m && /\d|[A-Z]{2,}/.test(m[1])) return { name: 'default', phrase: m[0], content: m[1] };
-  m = new RegExp('\\bsave\\s+(.+?)\\s+as\\s+my\\s+(?:([a-z][\\w-]{0,20})\\s+)?' + KIND, 'i').exec(s);  // "save AAPL, MSFT as my portfolio"
-  if (m) return { name: nameOf(m[2]), phrase: m[0], content: m[1] };
+  let m = ADD.exec(s);                                                    // "add 5 TSLA to my portfolio"
+  if (m) return { name: nameOf(m[2]), phrase: m[0], content: m[1], op: 'add' };
+  m = REMOVE.exec(s);                                                     // "remove KO from my portfolio"
+  if (m) return { name: nameOf(m[2]), phrase: m[0], content: m[1], op: 'remove' };
+  m = /\bi\s+(?:just\s+)?(?:bought|purchased|added)\s+(.+)$/i.exec(s);    // "I bought 3 more nvidia"
+  if (m && HOLDING.test(m[1])) return { name: 'default', phrase: m[0], content: m[1].replace(/\b(?:more|another)\b/gi, ' '), op: 'add' };
+  m = /\bi\s+(?:just\s+)?sold\s+(?:all\s+(?:of\s+)?)?(?:my\s+)?(.+)$/i.exec(s);   // "I sold 2 AAPL", "I sold my tesla"
+  if (m && m[1].trim().length > 1) return { name: 'default', phrase: m[0], content: m[1], op: 'remove' };
+  m = /\bi\s+(?:own|hold|have)\s+(.+)$/i.exec(s);                         // "I own 10 AAPL and 5 MSFT"
+  if (m && HOLDING.test(m[1])) return { name: 'default', phrase: m[0], content: m[1], op: 'set' };
+  m = SAVE_AS.exec(s);                                                    // "save AAPL, MSFT as my portfolio"
+  if (m) return { name: nameOf(m[2]), phrase: m[0], content: m[1], op: 'set' };
   m = MY.exec(s);
   if (!m) return null;
   const after = SAYS.exec(s.slice(m.index + m[0].length));
-  return { name: nameOf(m[1]), phrase: after ? s.slice(m.index) : m[0], content: after ? after[1] : null };
+  return { name: nameOf(m[1]), phrase: after ? s.slice(m.index) : m[0], content: after ? after[1] : null, op: after ? 'set' : null };
 }
 const nameOf = n => (!n || NOT_NAMES.has(n.toLowerCase()) ? 'default' : n.toLowerCase());
 export const titleOf = name => (name === 'default' ? 'My portfolio' : 'My ' + name + ' portfolio');
+// How the person asks for it: "my portfolio", "my retirement portfolio".
+export const sayOf = name => titleOf(name).toLowerCase();
 
 // "10 AAPL, MSFT x5, 20 shares of nvidia and 3.5 BRK-B" → [{ y, qty }], plus words not found.
 export function parseItems(text, index) {
@@ -42,6 +60,28 @@ export function parseItems(text, index) {
     if (y) items.push({ y, qty }); else unknown.push(raw.trim());
   }
   return { items, unknown };
+}
+
+// The portfolio after a change. 'add' puts new shares in and adds quantities to ones already
+// held; 'remove' takes a share out, or lowers its quantity when a smaller one is given
+// ("I sold 2 AAPL" of 10 leaves 8). Returns { items, changed } (changed: shares touched).
+export function applyChange(old, items, op) {
+  if (op !== 'add' && op !== 'remove') return { items, changed: items.length };
+  const next = (old || []).map(i => ({ ...i }));
+  let changed = 0;
+  for (const it of items) {
+    const at = next.findIndex(x => x.y === it.y);
+    if (op === 'add') {
+      if (at < 0) next.push({ ...it });
+      else if (it.qty) next[at].qty = (next[at].qty || 0) + it.qty;
+      changed++;
+    } else if (at >= 0) {
+      if (it.qty && next[at].qty > it.qty) next[at].qty = +(next[at].qty - it.qty).toFixed(6);
+      else next.splice(at, 1);
+      changed++;
+    }
+  }
+  return { items: next, changed };
 }
 
 // Saved items → a dashboard section, grouped by sector.

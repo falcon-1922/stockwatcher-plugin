@@ -4,8 +4,21 @@ A live stock-market dashboard and heat map in the browser, steered from the chat
 Ask for an index, a sector, a theme, companies, an investor's 13F portfolio, what
 r/wallstreetbets is discussing, or a question about companies that needs research.
 
-Needs Node.js 18 or newer. No API keys and no installs. Prices come from Yahoo Finance
-(Nasdaq when Yahoo is busy) and can be delayed. Not investment advice.
+It learns as you use it: say "this is my portfolio: 10 AAPL, 5 MSFT" once and "show my
+portfolio" brings it back ("add 5 TSLA to my portfolio" and "I sold 2 AAPL" change it);
+researched answers are remembered; and the page offers your usual requests as buttons.
+
+Built by [Maria Sukhareva](https://www.linkedin.com/in/msukhareva/) of
+[AI Realist](https://airealist.org).
+
+## What you need
+
+- Windows, macOS or Linux.
+- [Node.js](https://nodejs.org) 18 or newer (the "LTS" installer, default choices). That is
+  the only thing to install: there are no packages to download, no accounts and no API keys.
+
+Prices come from Yahoo Finance (Nasdaq when Yahoo is busy) and can be delayed. Not
+investment advice.
 
 ## Install
 
@@ -23,3 +36,18 @@ Needs Node.js 18 or newer. No API keys and no installs. Prices come from Yahoo F
 
 The scripts that refresh the shipped data are kept separately and are not part of this
 repository.
+
+## What stays on your computer, and what it contacts
+
+Your portfolios, remembered research and the count of what you ask for are kept in one file
+on your computer and are never sent anywhere. The dashboard can be opened only from your
+own computer; other websites cannot read it.
+
+The skill contacts these services, with no account and nothing about you:
+
+- Yahoo Finance and Nasdaq for prices and the stock list;
+- SEC EDGAR and OpenFIGI when you ask for an investor's portfolio;
+- ApeWisdom when you ask about r/wallstreetbets;
+- airealist.org, at most once a day while the dashboard is in use, for the maker's current
+  workshop dates. The page shows one small line about one of them or the newsletter; the
+  "×" next to it hides it for a week.

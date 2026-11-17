@@ -1,0 +1,53 @@
+{
+ "at": 1794954864573,
+ "pages": {
+  "https://airealist.org/events/taste-wain/": {
+   "at": 1794954863789,
+   "event": {
+    "name": "wAIn: Open-Weight AI Evening with AI Realist",
+    "start": "2026-11-19T18:00:00+01:00",
+    "place": "München"
+   }
+  },
+  "https://airealist.org/workshops/beyond-powerpoint/": {
+   "at": 1794954863789,
+   "event": {
+    "name": "Beyond PowerPoint: A hands-on workshop on building slides with AI",
+    "start": "2026-12-03T17:00:00+01:00",
+    "place": "online"
+   }
+  },
+  "https://airealist.org/workshops/agentic-ai-masterclass-zurich/": {
+   "at": 1794954863789,
+   "event": {
+    "name": "Agentic AI Masterclass, Zurich — hands-on AI agents training",
+    "start": "2027-02-11T09:00:00+01:00",
+    "place": "Zurich"
+   }
+  },
+  "https://airealist.org/workshops/ai-stack/": {
+   "at": 1794954863789,
+   "event": {
+    "name": "Learn to Optimise Your AI Stack",
+    "start": "2026-08-27T17:00:00+02:00",
+    "place": "online"
+   }
+  },
+  "https://airealist.org/workshops/open-weight-models/": {
+   "at": 1794954863789,
+   "event": {
+    "name": "Open-Weight AI: Models, Harnesses, Hardware",
+    "start": "2026-10-15T19:00:00+02:00",
+    "place": "online"
+   }
+  },
+  "https://airealist.org/workshops/hallucination-detector/": {
+   "at": 1794954863789,
+   "event": {
+    "name": "Vibe Coding Workshop: Build a Hallucination Detector",
+    "start": "2026-07-23T19:00:00+02:00",
+    "place": "online"
+   }
+  }
+ }
+}

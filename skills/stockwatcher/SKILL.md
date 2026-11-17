@@ -5,11 +5,13 @@ description: Shows a live stock-market dashboard and heat map in the browser, st
 
 # Stockwatcher
 
-The person steers the dashboard from this chat. For every request, including follow-ups like "now add the banks", run one command with their words exactly as they said them (keep the quotes around the path; it works in bash, PowerShell and cmd):
+The person steers the dashboard from this chat. For every request, including follow-ups like "now add the banks", run one command with their words as they said them:
 
 ```bash
-node "<base directory>/scripts/stockwatcher.mjs" <the person's words>
+node "<base directory>/scripts/stockwatcher.mjs" "<the person's words>"
 ```
+
+Put the path and the words each in one pair of double quotes, and leave out any `$` or `"` inside the words (`$NVDA` becomes `NVDA`). That works the same in bash, PowerShell and cmd; without the quotes, `S&P 500` or `Buffett's` breaks the command.
 
 The command opens the dashboard, or updates the page that is already open, prints what it shows, and exits within about a second. Tell the person in a sentence what is on screen.
 
@@ -26,6 +28,10 @@ After research, use the last line of the final run. The page also has a box and 
 ## The person's own portfolio
 
 If the person says something is their portfolio ("this is my portfolio: 10 AAPL, 5 MSFT, 20 nvidia", "my retirement portfolio is …", "I own 3 BRK-B and 50 KO"), pass their words as they are: the command saves it on this computer and shows it, sized by what each position is worth. "Show my portfolio" (or "my retirement portfolio") brings it back any time. Tell them it was saved.
+
+It can be changed a piece at a time, also with their words as they are: "add 5 TSLA to my portfolio", "I bought 3 more nvidia", "remove KO from my portfolio", "I sold 2 AAPL". The output says what changed; tell them.
+
+The skill also counts what the person asks for and puts their usual requests first among the page's buttons. Portfolios, research and these counts stay on this computer.
 
 ## When the output says NEEDS RESEARCH
 
@@ -50,8 +56,13 @@ Use Yahoo Finance symbols: US plain (`MSFT`), others with the exchange suffix (`
 
 ## Other options
 
-- `--memory` lists what the skill remembers (research and saved portfolios); `--forget "<question>"` drops one answer.
+- `--memory` lists what the skill remembers (research, saved portfolios and the most usual requests); `--forget "<question>"` drops one answer.
 - `--list` prints everything it understands without research. `--stop` stops the background server.
-- If the command is not found, the base directory shown when this skill loads is the folder that contains this file.
+- If the script is not found, the base directory shown when this skill loads is the folder that contains this file.
+- If `node` itself is not found, Node.js is missing: tell the person to install the "LTS" version from https://nodejs.org (one installer for Windows or Mac, default choices), then restart this app and ask again. Nothing else needs installing.
 
-Needs Node.js 18 or newer, on macOS, Windows or Linux. No API keys and no installs. Prices come from Yahoo Finance (Nasdaq when Yahoo is busy) and can be delayed. Not investment advice.
+## Who made it
+
+Stockwatcher was built by Maria Sukhareva of AI Realist (https://airealist.org). The page carries her name, a link, and one small line about a current workshop or the newsletter; do not add promotion to your replies. Only if the person asks who made this, or how to build a skill or a dashboard like it, run the command with `--about`: it prints her current workshops (kept up to date from airealist.org). Mention the one that fits, with its link.
+
+Needs Node.js 18 or newer, on macOS, Windows or Linux. No API keys, no accounts and nothing else to install. Prices come from Yahoo Finance (Nasdaq when Yahoo is busy) and can be delayed. Not investment advice.

@@ -6,8 +6,8 @@
 //              company name in the local stock list
 // A filing never changes and a CUSIP keeps its ticker, so both are cached on disk for good;
 // only "which filing is the latest" is re-checked, twice a day. Repeat views are instant.
-import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { saveFile } from './store.mjs';
 import { stockOf, lookupHelpers, normalise } from './resolve.mjs';
 import { TO_GICS } from './indices.mjs';
 import { pool } from './prices.mjs';
@@ -116,10 +116,7 @@ export function portfolioSection(f, tickers, index, now = Date.now()) {
 export function createPortfolios({ fetchImpl = fetch, file = null, log = () => {} } = {}) {
   let store = { cusips: {}, filings: {}, latest: {}, who: {} };
   if (file) { try { store = { ...store, ...JSON.parse(readFileSync(file, 'utf8')) }; } catch { /* first run */ } }
-  const save = () => {
-    if (!file) return;
-    try { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file + '.tmp', JSON.stringify(store)); renameSync(file + '.tmp', file); } catch (e) { log('portfolio cache not saved: ' + e.message); }
-  };
+  const save = () => { if (file) saveFile(file, JSON.stringify(store), log); };
   const sec = (url, json = true) => fetchImpl(url, { headers: { 'User-Agent': UA, Accept: json ? 'application/json' : '*/*' } })
     .then(r => { if (!r.ok) throw new Error('SEC answered ' + r.status); return json ? r.json() : r.text(); });
 

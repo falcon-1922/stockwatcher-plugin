@@ -113,7 +113,8 @@ export function lookupHelpers(index) {
   let h = helpers.get(index);
   if (!h) {
     const bySym = new Map(index.map(r => [r[SYM], r]));
-    h = { bySym, stockOf, findByName: text => findByName(stripFiller(normalise(text)), index) };
+    let names = null;                    // normalised company names, made on first use
+    h = { bySym, stockOf, names: () => names || (names = index.map(r => normalise(r[NAME]))), findByName: text => findByName(stripFiller(normalise(text)), index) };
     helpers.set(index, h);
   }
   return h;
@@ -125,7 +126,7 @@ export function sectionFromFilters(index, filters, title, opts = {}) {
   let rows = index.filter(r => filters.some(f => matchesFilter(r, f)));
   // One line per company: drop the smaller share class (GOOG next to GOOGL, BRK-A next to BRK-B).
   const names = new Set();
-  rows = rows.filter(r => { const k = normalise(r[NAME]); if (names.has(k)) return false; names.add(k); return true; });
+  rows = rows.filter(r => { const k = r[NAME].toLowerCase(); if (names.has(k)) return false; names.add(k); return true; });
   if (!rows.length) return null;
   const big = rows.filter(r => r[CAP] >= minCap);
   rows = big.length >= 5 ? big : rows;
@@ -179,10 +180,10 @@ function sectionFromTheme(theme, bySym) {
 
 function findByName(text, index) {
   if (text.length < 3) return null;
-  const re = wordRe(text);
-  for (const r of index) {             // index is sorted by market value: biggest match wins
-    const n = normalise(r[NAME]);
-    if (n === text || n.startsWith(text + ' ') || re.test(n)) return r;
+  const re = wordRe(text), names = lookupHelpers(index).names();
+  for (let i = 0; i < index.length; i++) {   // index is sorted by market value: biggest match wins
+    const n = names[i];
+    if (n === text || n.startsWith(text + ' ') || re.test(n)) return index[i];
   }
   return null;
 }
@@ -305,7 +306,7 @@ export function vocabulary(themes) {
 }
 
 export function symbolsOf(sections) {
-  const out = [];
-  for (const s of sections) for (const g of s.groups) for (const st of g.stocks) if (!out.includes(st.y)) out.push(st.y);
-  return out;
+  const out = new Set();
+  for (const s of sections) for (const g of s.groups) for (const st of g.stocks) out.add(st.y);
+  return [...out];
 }

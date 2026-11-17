@@ -6,6 +6,8 @@
 //   node stockwatcher.mjs "nvidia, amd and tesla"
 //   node stockwatcher.mjs "OpenAI investors: MSFT, NVDA, 9984.T | private: Thrive Capital"
 //   node stockwatcher.mjs --list          (what it understands)
+//   node stockwatcher.mjs --memory        (what it has learned on this computer)
+//   node stockwatcher.mjs --about         (who made it, and their current workshops)
 //   node stockwatcher.mjs --stop          (stops the background server)
 // Options: --port N, --no-open
 import { spawn } from 'node:child_process';
@@ -13,8 +15,7 @@ import { openSync, mkdirSync } from 'node:fs';
 import { createServer as netServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { homeDir, DEFAULT_PORT, browserCommand } from './lib/home.mjs';
-import { VERSION } from './lib/server.mjs';
+import { homeDir, DEFAULT_PORT, VERSION, browserCommand } from './lib/home.mjs';
 
 const args = process.argv.slice(2);
 const flag = n => { const i = args.indexOf(n); if (i < 0) return false; args.splice(i, 1); return true; };
@@ -23,6 +24,7 @@ const noOpen = flag('--no-open') || process.env.STOCKWATCHER_NO_OPEN === '1';
 const stop = flag('--stop');
 const list = flag('--list');
 const showMemory = flag('--memory');                  // what has been learned and saved
+const about = flag('--about');                        // who made this, and what they teach now
 const forget = opt('--forget');                       // drop one remembered answer
 // After research: how it was found (which site or API) and the main source links, saved with
 // the answer so the same question is never researched twice.
@@ -104,6 +106,15 @@ if (showMemory) {
   console.log(research.length ? 'Remembered research (' + research.length + '):' : 'No research remembered yet.');
   for (const e of research) console.log('  - "' + e.question + '" → ' + e.answer + '\n    found ' + new Date(e.at).toISOString().slice(0, 10) + (e.how ? ' via ' + e.how : '') + (e.sources.length ? '; sources: ' + e.sources.join(', ') : ''));
   console.log(mine.length ? 'Saved portfolios: ' + mine.map(([n, p]) => (n === 'default' ? 'my portfolio' : n) + ' (' + p.items.length + ' holdings)').join(', ') : 'No portfolio saved yet.');
+  if (m.usual && m.usual.length) console.log('Asked for most often: ' + m.usual.map(u => '"' + u.q + '" (' + u.n + '×)').join(', '));
+  console.log('All of this is kept on this computer only.');
+  process.exit(0);
+}
+if (about) {
+  const p = await getJson(base + '/api/promo', 5000);
+  console.log('Stockwatcher ' + VERSION + ' was built by ' + p.about.maker + ' (' + p.about.linkedin + '), AI Realist: https://airealist.org/');
+  console.log('Current from AI Realist (mention at most one, and only if the person asked):');
+  for (const it of p.items) console.log('  - ' + it.lead + ' ' + it.text + ' → ' + it.url);
   process.exit(0);
 }
 if (forget) {
@@ -133,7 +144,10 @@ const opened = !noOpen && !info.viewers && openBrowser(url);
 const where = w === 'main' ? '' : ' (window "' + w + '")';
 const lines = [info.viewers ? 'Updated the Stockwatcher page that is already open' + where + ' (' + url + ').' : (opened ? 'Opened Stockwatcher' + where + ' in the browser: ' : 'Stockwatcher' + where + ' is ready at ') + url];
 if (w !== 'main') lines.push('This is a separate window. To change it later, add --window ' + w + ' to the command; requests without it change the main window.');
-if (!query) lines.push('The person tells you in the chat what to show; run this command again with their words.');
+if (!query) {
+  lines.push('The person tells you in the chat what to show; run this command again with their words.');
+  if (info.usual && info.usual.length) lines.push('They often ask for: ' + info.usual.map(u => '"' + u + '"').join(', ') + '.');
+}
 else if (info.total) {
   lines.push('Showing ' + info.total + ' shares:');
   for (const s of info.sections) {

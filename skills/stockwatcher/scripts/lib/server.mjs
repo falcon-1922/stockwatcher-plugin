@@ -13,20 +13,23 @@
 //                                 and lists the rest as `pending` (the page asks again)
 //   GET /api/history?q=...        a year of daily closes per share (heat-map slider)
 //   GET /api/vocab                themes and sector words, for the example prompts
+//   GET /api/promo                who made this, and the one-line pointers the page rotates
 //   GET /api/health               { app: 'stockwatcher', version, pid }
 //   GET /api/stop                 shuts the server down
 import http from 'node:http';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { resolve, symbolsOf, vocabulary, splitQuery, isTitledList } from './resolve.mjs';
 import { isPortfolio } from './portfolio.mjs';
 import { similarity } from './memory.mjs';
-import { parseMine, parseItems, mineSection, titleOf } from './mine.mjs';
+import { parseMine, parseItems, applyChange, mineSection, sayOf } from './mine.mjs';
+import { saveFile } from './store.mjs';
+import { VERSION } from './home.mjs';
+import { ABOUT } from './promo.mjs';
 import { createPriceCache } from './pricecache.mjs';
 import { splitResearch } from './research.mjs';
 import { isSocial } from './social.mjs';
 
-export const VERSION = '3.5.0';
+export { VERSION };
 
 export function summarise(sections, unmatched, research, notes = []) {
   return {
@@ -40,16 +43,16 @@ export function summarise(sections, unmatched, research, notes = []) {
 // `portfolios` (optional): (text, indexRows) → section | null, see portfolio.mjs.
 // `viewsFile` (optional): where each window's current view is kept, so the short dashboard
 // link (http://127.0.0.1:4317/?w=w2) still shows it after a restart.
-// `memory` (optional): research memory and saved portfolios, see memory.mjs.
-export function createServer({ pagePath, index, themes, prices = createPriceCache(), social = null, portfolios = null, memory = null, viewsFile = null, budgetMs = 1200, log = () => {}, onStop = () => {}, onActivity = () => {} }) {
+// `memory` (optional): research memory, saved portfolios and usual requests, see memory.mjs.
+// `promo` (optional): the maker's one-line pointers, see promo.mjs.
+export function createServer({ pagePath, index, themes, prices = createPriceCache(), social = null, portfolios = null, memory = null, promo = null, viewsFile = null, budgetMs = 1200, log = () => {}, onStop = () => {}, onActivity = () => {} }) {
   const resolved = new Map(); // query → { at, result }   (the index changes once a day at most)
   const vocab = vocabulary(themes);
   const views = new Map([['main', { q: '', at: 0 }]]);   // window name → its current view
   if (viewsFile) { try { for (const [w, v] of Object.entries(JSON.parse(readFileSync(viewsFile, 'utf8')))) views.set(w, v); } catch { /* first run */ } }
-  const saveViews = () => {
-    if (!viewsFile) return;
-    try { mkdirSync(dirname(viewsFile), { recursive: true }); writeFileSync(viewsFile, JSON.stringify(Object.fromEntries([...views].filter(([, v]) => v.q).slice(-50)))); } catch (e) { log('views not saved: ' + e.message); }
-  };
+  const saveViews = () => { if (viewsFile) saveFile(viewsFile, JSON.stringify(Object.fromEntries([...views].filter(([, v]) => v.q).slice(-50))), log); };
+  // What the person asks for most, for the page's buttons (their saved portfolio first).
+  const usual = () => (memory ? memory.frequent(4).map(e => e.q) : []);
   const viewers = new Map();   // open event stream → window name, one per open page
   let windowCount = 1;
   const windowOf = url => { const w = url.searchParams.get('w') || 'main'; return /^[a-z0-9-]{1,20}$/i.test(w) ? w : 'main'; };
@@ -92,16 +95,25 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
     return { left, sections, notes };
   }
 
-  // "this is my portfolio: 10 AAPL, 5 MSFT" (saved only from /api/show) or "show my portfolio".
+  // "this is my portfolio: 10 AAPL, 5 MSFT", "add 5 TSLA to my portfolio", "I sold 2 AAPL"
+  // (changes are saved only from /api/show) or "show my portfolio".
   function myPortfolio(q, save) {
     const mine = memory && parseMine(q);
     if (!mine) return null;
-    const notes = [], unmatched = [];
+    const notes = [], unmatched = [], yours = sayOf(mine.name).replace(/^my/, 'your');
     if (mine.content && save) {
       const { items, unknown } = parseItems(mine.content, index.rows());
-      if (items.length) {
-        memory.savePortfolio(mine.name, items);
-        notes.push('Saved as ' + titleOf(mine.name).toLowerCase().replace(/^my/, 'your') + ' (' + items.length + ' holdings, on this computer). Say "show my' + (mine.name === 'default' ? '' : ' ' + mine.name) + ' portfolio" any time.');
+      const old = memory.portfolio(mine.name);
+      if (items.length && mine.op === 'remove' && !old) { /* nothing saved to take from: said below */ }
+      else if (items.length) {
+        const { items: next, changed } = applyChange(old && old.items, items, mine.op);
+        const n = next.length + ' holding' + (next.length === 1 ? '' : 's');
+        if (!next.length) { memory.removePortfolio(mine.name); notes.push('Removed the last holding: ' + yours + ' is now empty.'); }
+        else if (mine.op === 'remove' && !changed) notes.push('That is not in ' + yours + '; nothing was changed.');
+        else {
+          memory.savePortfolio(mine.name, next);
+          notes.push((mine.op === 'add' ? 'Added to ' + yours : mine.op === 'remove' ? 'Removed from ' + yours : 'Saved as ' + yours) + ' (now ' + n + ', on this computer). Say "show ' + sayOf(mine.name) + '" any time.');
+        }
       }
       unmatched.push(...unknown);
     }
@@ -188,7 +200,7 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
       query: q, updated: Date.now(),
       source: !symbols.length || Object.keys(quotes).length ? (p.stale.length ? 'stale' : 'live') : (p.pending.length ? 'loading' : 'none'),
       feeds: [...new Set(Object.values(p.source))], universe: sections, quotes,
-      pending: p.pending, stale: p.stale.length, missing: p.missing, unmatched, research, notes, vocab,
+      pending: p.pending, stale: p.stale.length, missing: p.missing, unmatched, research, notes, usual: usual(),
     };
   }
 
@@ -204,9 +216,18 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
     res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
   };
 
+  // Only this computer's own pages and the command may use the server. A website open in the
+  // browser cannot: not under another name pointed at 127.0.0.1 (the Host check), and not by
+  // calling the API from its own page (browsers mark such requests "cross-site"). This keeps a
+  // saved portfolio private and stops other pages changing the view.
+  const LOCAL = new Set(['127.0.0.1', 'localhost', '[::1]']);
+  const allowed = (req, path) => LOCAL.has(String(req.headers.host || '').replace(/:\d+$/, ''))
+    && !(path.startsWith('/api/') && req.headers['sec-fetch-site'] === 'cross-site');
+
   const server = http.createServer(async (req, res) => {
-    onActivity();
     const url = new URL(req.url, 'http://localhost');
+    if (!allowed(req, url.pathname)) return send(res, 403, { error: 'forbidden' });
+    onActivity();
     const q = url.searchParams.get('q') || '';
     const w = windowOf(url);
     try {
@@ -224,12 +245,20 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
           broadcast(w);
           const learned = learn(w, q, url.searchParams.get('how') || '', url.searchParams.getAll('src').filter(Boolean));
           const open = [...research, ...unmatched];
+          // Count what the person asks for, so the page can offer their usual requests. A
+          // portfolio counts as "my portfolio" (never its contents); the chat's research
+          // answers ("title: tickers") are not the person's words and are skipped.
+          if (memory && q && (sections.length || research.length)) {
+            const mine = parseMine(q);
+            if (mine) memory.noteAsked(sayOf(mine.name));
+            else if (!isTitledList(q)) memory.noteAsked(q.replace(REFRESH, ' '));
+          }
           if (open.length) pendingResearch.set(w, { questions: open, at: Date.now() });
           // For what still needs research: how similar questions were answered before.
           const hints = memory ? open.flatMap(o => memory.similar(o).map(e => ({ for: o, question: e.question, how: e.how, sources: e.sources, days: e.days }))) : [];
-          return send(res, 200, { ...summarise(sections, unmatched, research, notes), window: w, viewers: watching(w), vocab, learned, hints });
+          return send(res, 200, { ...summarise(sections, unmatched, research, notes), window: w, viewers: watching(w), vocab, learned, hints, usual: usual() });
         }
-        case '/api/memory': return send(res, 200, memory ? memory.all() : { research: {}, portfolios: {} });
+        case '/api/memory': return send(res, 200, memory ? { ...memory.all(), usual: memory.frequent(8) } : { research: {}, portfolios: {}, usual: [] });
         case '/api/memory/forget': return send(res, 200, { forgotten: memory ? memory.forget(q) : false });
         case '/api/window/new': {
           let name;
@@ -251,7 +280,8 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
           const p = symbols.length ? await prices.get(symbols, budgetMs) : { history: {} };
           return send(res, 200, { updated: Date.now(), series: p.history });
         }
-        case '/api/vocab': return send(res, 200, vocab);
+        case '/api/vocab': return send(res, 200, { ...vocab, usual: usual() });
+        case '/api/promo': return send(res, 200, { about: ABOUT, items: promo ? promo.items() : [] });
         case '/api/health': return send(res, 200, { ok: true, app: 'stockwatcher', version: VERSION, pid: process.pid, stocks: index.rows().length, viewers: viewers.size });
         case '/api/stop': send(res, 200, { ok: true, stopping: true }); return onStop();
         default: return send(res, 404, { error: 'not found' });
