@@ -10,7 +10,7 @@ Needs Node.js 18 or newer. No API keys and no installs. Prices come from Yahoo F
 ## Install
 
 ```bash
-/plugin marketplace add ktoetotam/stockwatcher
+/plugin marketplace add ktoetotam/stockwatcher-plugin
 /plugin install stockwatcher@stockwatcher
 ```
 

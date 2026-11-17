@@ -2,7 +2,7 @@
   "name": "stockwatcher",
   "version": "3.4.0",
   "description": "Live stock-market dashboard and heat map in the browser, steered from the chat: indices, sectors, themes, companies, investor 13F portfolios, r/wallstreetbets, and questions about companies researched once and remembered. No API keys.",
-  "homepage": "https://github.com/ktoetotam/stockwatcher",
-  "repository": "https://github.com/ktoetotam/stockwatcher",
+  "homepage": "https://github.com/ktoetotam/stockwatcher-plugin",
+  "repository": "https://github.com/ktoetotam/stockwatcher-plugin",
   "keywords": ["stocks", "market", "dashboard", "heat-map", "portfolio", "13f", "wallstreetbets"]
 }
