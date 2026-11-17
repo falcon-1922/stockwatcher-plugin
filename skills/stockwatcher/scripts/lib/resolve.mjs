@@ -164,6 +164,11 @@ function sectionFromIndex(theme, bySym) {
 }
 
 function sectionFromTheme(theme, bySym) {
+  if (theme.sizeBy === 'indexWeight') {
+    return { ...theme, groups: theme.groups.map(g => ({ ...g,
+      stocks: g.stocks.map(([y, t, n, x, c, indexWeight]) => ({ y, t, n, x, c, indexWeight }))
+    })) };
+  }
   if (theme.members) return sectionFromIndex(theme, bySym);
   return {
     id: theme.id, title: theme.title, blurb: theme.blurb,
@@ -292,6 +297,16 @@ function resolveOne(query, index, themes) {
       if (sec) { sec.id = slug(raw); sections.push(sec); continue; }
     }
     unmatched.push(raw.trim());
+  }
+  // Restore the benchmark when reopening a previously saved, complete named index list.
+  if (titled && !footnote && !unmatched.length && !sections.length) {
+    const benchmark = themes.find(t => t.sizeBy === 'indexWeight' && t.title.toLowerCase() === picksTitle.toLowerCase());
+    if (benchmark) {
+      const members = benchmark.groups.flatMap(g => g.stocks);
+      if (members.length === picks.length && members.every(s => seen.has(s[0]))) {
+        return { sections: [sectionFromTheme(benchmark, bySym)], unmatched };
+      }
+    }
   }
   if (picks.length) sections.unshift({ id: titled ? slug(picksTitle) : 'picks', title: picksTitle, blurb: '', footnote, groups: [{ name: 'Selected shares', note: '', stocks: picks }] });
   return { sections, unmatched };

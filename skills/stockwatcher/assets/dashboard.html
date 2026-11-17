@@ -451,7 +451,7 @@ td.spark svg{width:90px;height:20px}
   function heat(part, rows) {
     var seg = PRESETS.map(function (p) { return '<button type="button" data-preset="' + p.id + '" aria-pressed="false">' + p.label + '</button>'; }).join('');
     var sized = rows.some(function (r) { return r.q.cap; });
-    return '<div class="heat"><div class="heat-bar"><span class="lbl">Heat map · ' + (part.sizeBy === 'held' || part.sizeBy === 'qty' ? 'block size is the position’s value' : sized ? 'block size is market value' : 'equal blocks') + '</span>' +
+    return '<div class="heat"><div class="heat-bar"><span class="lbl">Heat map · ' + (part.sizeBy === 'indexWeight' ? 'area = index weight' : part.sizeBy === 'held' || part.sizeBy === 'qty' ? 'block size is the position’s value' : sized ? 'block size is market value' : 'equal blocks') + '</span>' +
       '<div class="seg" role="group" aria-label="Quick periods">' + seg + '</div></div>' +
       '<div class="period"><span aria-hidden="true">Today</span><input type="range" min="1" max="365" step="1" value="' + state.win + '" aria-label="Period for the colours, in days back from today">' +
       '<span aria-hidden="true">12 months</span><p class="period-read"></p></div>' +
@@ -494,18 +494,19 @@ td.spark svg{width:90px;height:20px}
         part.groups.forEach(function (g) { g.stocks.forEach(function (s) { var q = data.quotes[s.y]; s.held = q && s.qty ? s.qty * q.p : 0; worth += s.held; }); });
         part.groups.forEach(function (g) { g.stocks.forEach(function (s) { s.weight = worth ? s.held / worth : 0; }); });
       }
-      var size = part.sizeBy === 'held' || part.sizeBy === 'qty' ? function (s) { return s.held; } : function (s, q) { return q.cap; };
+      var byWeight = part.sizeBy === 'indexWeight';
+      var size = byWeight ? function (s) { return s.indexWeight; } : part.sizeBy === 'held' || part.sizeBy === 'qty' ? function (s) { return s.held; } : function (s, q) { return q.cap; };
       part.groups.forEach(function (g) { g.stocks.forEach(function (s) { var q = data.quotes[s.y]; if (q && size(s, q)) caps.push(size(s, q)); }); });
       var fallback = median(caps) || 1, sum = 0;
       var groups = part.groups.map(function (g) {
-        var kids = g.stocks.filter(function (s) { return data.quotes[s.y]; }).map(function (s) {
-          var q = data.quotes[s.y]; return { s: s, q: q, v: size(s, q) || fallback };
+        var kids = g.stocks.filter(function (s) { return byWeight || data.quotes[s.y]; }).map(function (s) {
+          var q = data.quotes[s.y] || {}; return { s: s, q: q, v: size(s, q) || fallback };
         });
         var v = kids.reduce(function (a, k) { return a + k.v; }, 0); sum += v;
         return { name: g.name, kids: kids, v: v };
       });
       // Keep the smallest companies and segments large enough to see and to tap.
-      groups.forEach(function (g) {
+      if (!byWeight) groups.forEach(function (g) {
         g.kids.forEach(function (k) { k.v = Math.max(k.v, sum * 0.0012); });
         g.v = Math.max(g.kids.reduce(function (a, k) { return a + k.v; }, 0), sum * 0.02);
       });
@@ -515,9 +516,9 @@ td.spark svg{width:90px;height:20px}
         html += '<div class="hm-group" style="left:' + gr.x.toFixed(1) + 'px;top:' + gr.y.toFixed(1) + 'px;width:' + gr.w.toFixed(1) + 'px;height:' + gr.h.toFixed(1) + 'px">' +
           '<div class="hm-head" title="' + esc(g.name) + '">' + esc(g.name) + '</div>';
         squarify(g.kids, 0, HEAD, gr.w, Math.max(0, gr.h - HEAD)).forEach(function (r, n) {
-          var k = r.it, v = periodChange(k.s.y, k.q), fs = Math.max(9, Math.min(26, r.w / 4.6, r.h / 2.7));
+          var k = r.it, v = k.q.p == null ? null : periodChange(k.s.y, k.q), fs = Math.max(9, Math.min(26, r.w / 4.6, r.h / 2.7));
           var showT = r.w >= 30 && r.h >= 15, showP = showT && r.h >= fs * 2.6 && r.w >= 40;
-          var read = k.s.n + ' (' + k.s.t + ') ' + (v == null ? 'not listed long enough for this period' : pct(v, 2) + ' ' + word) + (k.s.held ? ' · held ' + money(k.s.held) + ' (' + (k.s.weight * 100).toFixed(1) + '% of the portfolio)' : '') + (k.q.cap ? ' · market value ' + money(k.q.cap) : '');
+          var read = k.s.n + ' (' + k.s.t + ') ' + (byWeight ? k.s.indexWeight.toFixed(2) + '% of the DAX · ' : '') + (k.q.p == null ? 'quote unavailable' : v == null ? 'not listed long enough for this period' : pct(v, 2) + ' ' + word) + (k.s.held ? ' · held ' + money(k.s.held) + ' (' + (k.s.weight * 100).toFixed(1) + '% of the portfolio)' : '') + (k.q.cap ? ' · market value ' + money(k.q.cap) : '');
           html += '<div class="hm-tile" tabindex="0" role="img" aria-label="' + esc(read) + '" title="' + esc(read) + '" data-read="' + esc(read) +
             '" style="left:' + r.x.toFixed(1) + 'px;top:' + r.y.toFixed(1) + 'px;width:' + r.w.toFixed(1) + 'px;height:' + r.h.toFixed(1) + 'px;background:' + tileColor(v, full) + '">' + (showT ? '<b style="font-size:' + fs.toFixed(1) + 'px">' + esc(k.s.t) + '</b>' : '') +
             (showP && v != null ? '<span style="font-size:' + Math.max(9, fs * 0.62).toFixed(1) + 'px">' + pct(v) + '</span>' : '') + '</div>';
@@ -527,14 +528,14 @@ td.spark svg{width:90px;height:20px}
       box.innerHTML = html;
     });
   }
-  function stats(rows) {
+  function stats(rows, part) {
     var d = rows.map(function (r) { return r.q.d; }).filter(function (v) { return v != null; });
     var y = rows.map(function (r) { return r.q.y; }).filter(function (v) { return v != null; });
     var upN = d.filter(function (v) { return v > 0; }).length, downN = d.filter(function (v) { return v < 0; }).length;
     var avg = mean(d), medY = median(y);
     var nearHigh = rows.filter(function (r) { return r.q.hi > r.q.lo && (r.q.p - r.q.lo) / (r.q.hi - r.q.lo) >= 0.8; }).length;
     return '<div class="stats">' +
-      '<div class="stat"><p class="stat-num ' + dir(avg) + '">' + pct(avg, 2) + '</p><p class="stat-label">Basket today</p></div>' +
+      '<div class="stat"><p class="stat-num ' + dir(avg) + '">' + pct(avg, 2) + '</p><p class="stat-label">' + (part.sizeBy === 'indexWeight' ? 'Average share move today' : 'Basket today') + '</p></div>' +
       '<div class="stat"><p class="stat-num"><span class="up">' + upN + '</span><small>up</small> <span class="down">' + downN + '</span><small>down</small></p><p class="stat-label">Shares moving</p></div>' +
       '<div class="stat"><p class="stat-num ' + dir(medY) + '">' + pct(medY) + '</p><p class="stat-label">Typical share since 1 Jan</p></div>' +
       '<div class="stat"><p class="stat-num">' + nearHigh + '<small>of ' + rows.length + '</small></p><p class="stat-label">Near their 52-week high</p></div>' +
@@ -578,11 +579,11 @@ td.spark svg{width:90px;height:20px}
         return { name: g.name, note: g.note, rows: g.stocks.filter(function (s) { return data.quotes[s.y]; }).map(function (s) { return { s: s, q: data.quotes[s.y] }; }) };
       }).filter(function (g) { return g.rows.length; });
       var rows = groups.reduce(function (a, g) { return a.concat(g.rows); }, []);
-      if (!rows.length) return;
+      if (!rows.length && part.sizeBy !== 'indexWeight') return;
       nav += '<a href="#' + esc(part.id) + '">' + esc(part.title) + '</a>';
       html += '<section class="wrap part" id="' + esc(part.id) + '" aria-labelledby="h-' + esc(part.id) + '">' +
-        '<div class="part-head"><div><p class="eyebrow">' + rows.length + ' listed shares</p><h2 id="h-' + esc(part.id) + '">' + esc(part.title) + '</h2></div><p>' + esc(part.blurb || '') + '</p></div>' +
-        stats(rows) + (rows.length > 1 ? heat(part, rows) : '') +
+        '<div class="part-head"><div><p class="eyebrow">' + (part.sizeBy === 'indexWeight' ? part.groups[0].stocks.length : rows.length) + ' listed shares</p><h2 id="h-' + esc(part.id) + '">' + esc(part.title) + '</h2></div><p>' + esc(part.blurb || '') + '</p></div>' +
+        (rows.length ? stats(rows, part) : '') + (part.sizeBy === 'indexWeight' || rows.length > 1 ? heat(part, rows) : '') +
         // The share table is open by default; a long one can be folded away and stays folded.
         (rows.length > 80 ? '<details class="all-rows"' + (state.open[part.id] === false ? '' : ' open') + ' data-part="' + esc(part.id) + '"><summary>All ' + rows.length + ' shares (click to fold)</summary>' + table(part, groups) + '</details>' : table(part, groups)) +
         (part.footnote ? '<p class="footnote">' + esc(part.footnote).replace(/^([^:]{1,40}):/, '<b>$1:</b>') + '</p>' : '') +

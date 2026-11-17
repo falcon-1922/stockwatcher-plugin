@@ -25,6 +25,10 @@ After research, use the last line of the final run. The page also has a box and 
 
 **Separate windows:** if the person says "in a new / different / separate window (or tab)", keep those words; the command opens a separate window and names it (for example `w2`). Follow-ups for that window need `--window w2` (the command's output says so, and its research steps include it); requests without it change the main window.
 
+## Index heat maps
+
+For the DAX, tile area represents the published index weight on the date shown. Colour represents price change over the selected period. For other index requests, check the sizing label before describing what the map shows. A researched list of tickers establishes membership only. If weights are unavailable, identify the result as a constituent watchlist and state how its tiles are sized.
+
 ## The person's own portfolio
 
 If the person says something is their portfolio ("this is my portfolio: 10 AAPL, 5 MSFT, 20 nvidia", "my retirement portfolio is …", "I own 3 BRK-B and 50 KO"), pass their words as they are: the command saves it on this computer and shows it, sized by what each position is worth. "Show my portfolio" (or "my retirement portfolio") brings it back any time. Tell them it was saved.

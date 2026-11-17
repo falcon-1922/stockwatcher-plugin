@@ -1,5 +1,344 @@
 [
  {
+ "id": "dax",
+ "title": "DAX",
+ "aliases": [
+  "dax",
+  "dax 40",
+  "dax40"
+ ],
+ "sizeBy": "indexWeight",
+ "blurb": "Tile area shows DAX index weight on 16 November 2026, as published by Deka. Point at a tile for its weight.",
+ "groups": [
+  {
+   "name": "DAX constituents",
+   "note": "",
+   "stocks": [
+    [
+     "SAP.DE",
+     "SAP",
+     "SAP SE",
+     "Xetra",
+     "EUR",
+     11.7
+    ],
+    [
+     "SIE.DE",
+     "SIE",
+     "SIEMENS AG-REG",
+     "Xetra",
+     "EUR",
+     11.19
+    ],
+    [
+     "ALV.DE",
+     "ALV",
+     "ALLIANZ SE-REG",
+     "Xetra",
+     "EUR",
+     9.9
+    ],
+    [
+     "AIR.DE",
+     "AIR",
+     "AIRBUS SE",
+     "Xetra",
+     "EUR",
+     6.64
+    ],
+    [
+     "ENR.DE",
+     "ENR",
+     "SIEMENS ENERGY AG",
+     "Xetra",
+     "EUR",
+     6.17
+    ],
+    [
+     "DTE.DE",
+     "DTE",
+     "DEUTSCHE TELEKOM AG-REG",
+     "Xetra",
+     "EUR",
+     5.02
+    ],
+    [
+     "MUV2.DE",
+     "MUV2",
+     "MUENCHENER RUECKVER AG-REG",
+     "Xetra",
+     "EUR",
+     4.09
+    ],
+    [
+     "IFX.DE",
+     "IFX",
+     "INFINEON TECHNOLOGIES AG",
+     "Xetra",
+     "EUR",
+     3.55
+    ],
+    [
+     "DBK.DE",
+     "DBK",
+     "DEUTSCHE BANK AG-REGISTERED",
+     "Xetra",
+     "EUR",
+     3.46
+    ],
+    [
+     "DB1.DE",
+     "DB1",
+     "DEUTSCHE BOERSE AG",
+     "Xetra",
+     "EUR",
+     3.36
+    ],
+    [
+     "DHL.DE",
+     "DHL",
+     "DHL AG",
+     "Xetra",
+     "EUR",
+     3.14
+    ],
+    [
+     "BAYN.DE",
+     "BAYN",
+     "BAYER AG-REG",
+     "Xetra",
+     "EUR",
+     3.03
+    ],
+    [
+     "BAS.DE",
+     "BAS",
+     "BASF SE",
+     "Xetra",
+     "EUR",
+     2.64
+    ],
+    [
+     "EOAN.DE",
+     "EOAN",
+     "E.ON SE",
+     "Xetra",
+     "EUR",
+     2.38
+    ],
+    [
+     "RWE.DE",
+     "RWE",
+     "RWE AG",
+     "Xetra",
+     "EUR",
+     2.28
+    ],
+    [
+     "RHM.DE",
+     "RHM",
+     "RHEINMETALL AG",
+     "Xetra",
+     "EUR",
+     1.95
+    ],
+    [
+     "ADS.DE",
+     "ADS",
+     "ADIDAS AG",
+     "Xetra",
+     "EUR",
+     1.74
+    ],
+    [
+     "MBG.DE",
+     "MBG",
+     "MERCEDES-BENZ GROUP AG",
+     "Xetra",
+     "EUR",
+     1.6
+    ],
+    [
+     "HEI.DE",
+     "HEI",
+     "HEIDELBERG MATERIALS AG",
+     "Xetra",
+     "EUR",
+     1.21
+    ],
+    [
+     "DTG.DE",
+     "DTG",
+     "DAIMLER TRUCK HOLDING AG",
+     "Xetra",
+     "EUR",
+     1.21
+    ],
+    [
+     "FRE.DE",
+     "FRE",
+     "FRESENIUS SE & CO KGAA",
+     "Xetra",
+     "EUR",
+     1.2
+    ],
+    [
+     "MRK.DE",
+     "MRK",
+     "MERCK KGAA",
+     "Xetra",
+     "EUR",
+     1.05
+    ],
+    [
+     "BMW.DE",
+     "BMW",
+     "BAYERISCHE MOTOREN WERKE AG",
+     "Xetra",
+     "EUR",
+     1.05
+    ],
+    [
+     "MTX.DE",
+     "MTX",
+     "MTU AERO ENGINES AG",
+     "Xetra",
+     "EUR",
+     1.03
+    ],
+    [
+     "HNR1.DE",
+     "HNR1",
+     "HANNOVER RUECK SE",
+     "Xetra",
+     "EUR",
+     0.98
+    ],
+    [
+     "SHL.DE",
+     "SHL",
+     "SIEMENS HEALTHINEERS AG",
+     "Xetra",
+     "EUR",
+     0.89
+    ],
+    [
+     "CBK.DE",
+     "CBK",
+     "COMMERZBANK AG",
+     "Xetra",
+     "EUR",
+     0.87
+    ],
+    [
+     "VOW3.DE",
+     "VOW3",
+     "VOLKSWAGEN AG-PREF",
+     "Xetra",
+     "EUR",
+     0.76
+    ],
+    [
+     "HEN3.DE",
+     "HEN3",
+     "HENKEL AG & CO KGAA VOR-PREF",
+     "Xetra",
+     "EUR",
+     0.72
+    ],
+    [
+     "SY1.DE",
+     "SY1",
+     "SYMRISE AG",
+     "Xetra",
+     "EUR",
+     0.7
+    ],
+    [
+     "VNA.DE",
+     "VNA",
+     "VONOVIA SE",
+     "Xetra",
+     "EUR",
+     0.67
+    ],
+    [
+     "G1A.DE",
+     "G1A",
+     "GEA GROUP AG",
+     "Xetra",
+     "EUR",
+     0.58
+    ],
+    [
+     "QIA.DE",
+     "QIA",
+     "QIAGEN N.V.",
+     "Xetra",
+     "EUR",
+     0.51
+    ],
+    [
+     "FME.DE",
+     "FME",
+     "FRESENIUS MEDICAL CARE AG",
+     "Xetra",
+     "EUR",
+     0.44
+    ],
+    [
+     "CON.DE",
+     "CON",
+     "CONTINENTAL AG",
+     "Xetra",
+     "EUR",
+     0.43
+    ],
+    [
+     "BEI.DE",
+     "BEI",
+     "BEIERSDORF AG",
+     "Xetra",
+     "EUR",
+     0.4
+    ],
+    [
+     "BNR.DE",
+     "BNR",
+     "BRENNTAG SE",
+     "Xetra",
+     "EUR",
+     0.37
+    ],
+    [
+     "HOT.DE",
+     "HOT",
+     "HOCHTIEF AG",
+     "Xetra",
+     "EUR",
+     0.36
+    ],
+    [
+     "ZAL.DE",
+     "ZAL",
+     "ZALANDO SE",
+     "Xetra",
+     "EUR",
+     0.35
+    ],
+    [
+     "G24.DE",
+     "G24",
+     "SCOUT24 SE",
+     "Xetra",
+     "EUR",
+     0.34
+    ]
+   ]
+  }
+ ]
+},
+ {
   "id": "neocloud",
   "title": "Neoclouds",
   "aliases": [
