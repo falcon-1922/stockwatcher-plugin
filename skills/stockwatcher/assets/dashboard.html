@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stockwatcher</title>
+<meta name="description" content="A live dashboard for any group of stocks: price, today's move, one month, year to date and the 52-week range.">
+<style>
+:root{
+  --cream:#fef6f0;--cream-2:#fdf0e6;--espresso:#5b4230;--orange:#f68a6b;--orange-d:#e57a5a;
+  --brown:#5b4230;--tan:#7d614f;--orange-text:#b8391e;--purple:#6a4c93;--purple-light:rgba(106,76,147,.08);
+  --line:rgba(91,66,48,.12);--line-strong:rgba(91,66,48,.26);
+  --up:#2a6f4c;--down:#b8391e;--up-fill:#4f9a74;--down-fill:#e2694a;--flat:#7d614f;
+  --font-display:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;--font-body:var(--font-display);
+}
+body.dark-mode{
+  --cream:#241912;--cream-2:#2d1f17;--espresso:#fff4ea;--brown:#f4dfd0;--tan:#d1b5a3;--orange-text:#f0a488;
+  --purple:#c5a9e0;--purple-light:rgba(197,169,224,.1);--line:rgba(254,246,240,.14);--line-strong:rgba(254,246,240,.26);
+  --up:#86d3aa;--down:#f5a084;--up-fill:#5fae86;--down-fill:#e2694a;--flat:#d1b5a3;
+  background:radial-gradient(circle at 12% 0,rgba(246,138,107,.16),transparent 28%),radial-gradient(circle at 88% 4%,rgba(106,76,147,.18),transparent 30%),#241912;
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--cream);color:var(--brown);font-family:var(--font-body);font-weight:300;font-size:17px;line-height:1.6}
+a{color:inherit}
+::selection{background:var(--purple-light)}
+:focus-visible{outline:2px solid var(--orange);outline-offset:3px;border-radius:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip-link{position:absolute;left:1rem;top:-4rem;background:var(--espresso);color:var(--cream);padding:.6rem 1rem;border-radius:6px;z-index:50;text-decoration:none}
+.skip-link:focus{top:1rem}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:4rem}
+
+/* header */
+.site-header{position:sticky;top:0;z-index:20;background:var(--cream);border-bottom:1px solid var(--line)}
+body.dark-mode .site-header{background:#241912}
+.header-inner{display:flex;align-items:center;gap:2rem;min-height:68px}
+.logo{font-family:var(--font-display);font-weight:600;font-size:.95rem;letter-spacing:.24em;text-transform:uppercase;text-decoration:none;color:var(--espresso);white-space:nowrap}
+.logo{display:inline-flex;align-items:center;min-height:44px}
+.logo em{font-style:normal;margin-right:.45em;color:var(--purple)}
+.logo span{font-weight:300;letter-spacing:.16em;color:var(--tan);margin-left:.7rem}
+.header-nav{display:flex;gap:1.6rem;margin-left:auto}
+.header-nav a{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;color:var(--tan);padding:.8rem 0}
+.header-nav a:hover{color:var(--espresso)}
+.theme-btn{background:none;border:1px solid var(--line-strong);color:var(--espresso);border-radius:6px;min-width:44px;min-height:44px;font-size:1rem;cursor:pointer}
+.theme-btn:hover{border-color:var(--orange)}
+
+/* hero */
+.hero{padding-block:3.2rem 2.2rem;display:grid;grid-template-columns:1.3fr 1fr;gap:3rem;align-items:end;border-bottom:1px solid var(--line)}
+.hero-tag{font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--orange-text);display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem}
+.hero-tag::before{content:'';width:2.5rem;height:1px;background:var(--orange)}
+h1{font-family:var(--font-display);font-weight:300;font-size:clamp(2.3rem,4.3vw,3.9rem);line-height:1.04;letter-spacing:-.02em;color:var(--espresso)}
+h1 em{font-style:italic;color:var(--orange)}
+.hero-side p{font-size:1.05rem;color:var(--tan);max-width:44ch}
+.status{display:flex;align-items:center;gap:.6rem;margin-top:1.1rem;font-size:.9rem;color:var(--brown);font-weight:400;min-height:1.6rem}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--flat);flex:none}
+.status[data-state=live] .dot{background:var(--up-fill);animation:pulse 2.4s ease-out infinite}
+.status[data-state=saved] .dot{background:var(--orange)}
+.status[data-state=error] .dot{background:var(--down)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,154,116,.55)}70%,100%{box-shadow:0 0 0 9px rgba(79,154,116,0)}}
+
+/* parts */
+.part{padding-block:3.2rem 1rem}
+.part-head{display:grid;grid-template-columns:1.3fr 1fr;gap:3rem;align-items:end;margin-bottom:1.8rem}
+.part-head h2{font-family:var(--font-display);font-weight:400;font-size:2.3rem;line-height:1.1;color:var(--espresso);margin-top:.5rem}
+.part-head p{color:var(--tan);font-size:1rem;max-width:48ch}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border-block:1px solid var(--line)}
+.stat{padding:1.1rem 1.4rem;border-left:1px solid var(--line);min-width:0}
+.stat:first-child{border-left:0;padding-left:0}
+.stat-num{font-family:var(--font-display);font-weight:400;font-size:1.9rem;line-height:1.15;color:var(--espresso);font-variant-numeric:tabular-nums}
+.stat-num small{font-size:.95rem;color:var(--tan);font-weight:300;margin-left:.3rem}
+.stat-label{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--tan);margin-top:.2rem}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--flat)}
+
+/* heat map */
+.heat{margin-top:1.8rem;--hm-up:#236b47;--hm-down:#b8391e;--hm-flat:#7d6a5e}
+.heat-bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.6rem 1.5rem;margin-bottom:.7rem}
+.heat-bar .lbl{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--tan)}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden}
+.seg button{all:unset;cursor:pointer;font:inherit;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;color:var(--tan);padding:0 .8rem;min-height:40px;display:inline-flex;align-items:center;border-left:1px solid var(--line-strong)}
+.seg button:first-child{border-left:0}
+.seg button:hover{color:var(--espresso)}
+.seg button[aria-pressed=true]{background:var(--espresso);color:var(--cream);font-weight:500}
+.seg button:focus-visible{outline:2px solid var(--orange);outline-offset:-3px}
+.period{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.4rem 1rem;margin-bottom:.7rem;font-size:.78rem;letter-spacing:.06em;color:var(--tan)}
+.period input[type=range]{width:100%;height:44px;margin:0;accent-color:var(--orange);background:transparent;cursor:grab}
+.period input[type=range]:active{cursor:grabbing}
+.period input[type=range]:disabled{opacity:.45;cursor:default}
+.period-read{grid-column:1/-1;font-size:.95rem;letter-spacing:0;color:var(--brown);margin-top:-.3rem}
+.period-read b{font-weight:500;color:var(--espresso)}
+.hm{position:relative;height:540px;background:var(--cream-2);border-radius:6px;overflow:hidden}
+.hm-group{position:absolute;overflow:hidden}
+.hm-head{position:absolute;left:0;top:0;right:0;height:20px;padding:0 6px;font-size:10px;line-height:20px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;color:var(--cream);background:var(--espresso);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 0 0 0 1px var(--cream)}
+body.dark-mode .hm-head{background:#4a3527;color:#fff4ea}
+.hm-tile{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;overflow:hidden;box-shadow:inset 0 0 0 1px var(--cream);line-height:1.15}
+.hm-tile b{font-family:var(--font-display);font-weight:600;letter-spacing:.03em}
+.hm-tile span{font-weight:400;font-variant-numeric:tabular-nums;opacity:.95}
+.hm-tile:hover,.hm-tile:focus-visible{outline:2px solid var(--espresso);outline-offset:-2px;z-index:2}
+.heat-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem 1.5rem;align-items:center;margin-top:.7rem}
+.heat-read{font-size:.95rem;color:var(--brown);min-height:1.6rem;flex:1 1 300px}
+.heat-read b{font-weight:500;color:var(--espresso)}
+.legend{display:flex;align-items:center;gap:2px;font-size:.72rem;color:var(--tan);font-variant-numeric:tabular-nums}
+.legend i{display:block;width:26px;height:12px}
+.legend span{margin-inline:.4rem}
+
+/* table */
+.table-wrap{margin-top:2rem}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+thead th{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--tan);font-weight:400;text-align:right;padding:.2rem .7rem;border-bottom:1px solid var(--line-strong);white-space:nowrap}
+thead th:first-child{text-align:left;padding-left:0}
+thead th:last-child{padding-right:0}
+.sort{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;min-height:44px;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit}
+.sort:hover{color:var(--espresso)}
+.sort:focus-visible{outline:2px solid var(--orange);outline-offset:3px}
+.sort i{font-style:normal;font-size:.7rem;opacity:.35}
+th[aria-sort] .sort{color:var(--espresso)}
+th[aria-sort] .sort i{opacity:1;color:var(--orange-text)}
+tr.group th{text-align:left;padding:1.7rem 0 .55rem;border-bottom:1px solid var(--line)}
+tr.group .g-name{font-family:var(--font-display);font-weight:600;font-size:.82rem;letter-spacing:.14em;text-transform:uppercase;color:var(--espresso)}
+tr.group .g-note{font-size:.9rem;color:var(--tan);font-weight:300;margin-left:.8rem}
+tbody td{padding:.62rem .7rem;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-size:.98rem;font-weight:400}
+tbody td:first-child{text-align:left;padding-left:0;white-space:normal}
+tbody td:last-child{padding-right:0}
+tbody tr.row:hover td{background:var(--cream-2)}
+.co{display:flex;align-items:baseline;gap:.7rem;flex-wrap:wrap}
+.co a{font-family:var(--font-display);font-weight:600;font-size:.86rem;letter-spacing:.06em;color:var(--espresso);text-decoration:none;min-width:4.2rem;padding-block:.35rem}
+.co a:hover{color:var(--orange-text);text-decoration:underline}
+.co .nm{color:var(--brown);font-weight:300}
+.co .ex{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--tan)}
+.price .cur{font-size:.72rem;color:var(--tan);margin-left:.3rem;letter-spacing:.06em}
+.chg{font-weight:500}
+.range{display:inline-block;width:110px;height:14px;position:relative;vertical-align:middle}
+.range::before{content:'';position:absolute;left:0;right:0;top:6px;height:2px;background:var(--line-strong);border-radius:1px}
+.range i{position:absolute;top:2px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--espresso);border:2px solid var(--cream)}
+td.spark svg{display:block;width:120px;height:30px;margin-left:auto;overflow:visible}
+.spark path{fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.spark .s-up{stroke:var(--up-fill)}.spark .s-down{stroke:var(--down-fill)}
+@keyframes flashUp{from{background:rgba(79,154,116,.28)}to{background:transparent}}
+@keyframes flashDown{from{background:rgba(226,105,74,.28)}to{background:transparent}}
+td.tick-up{animation:flashUp 1.2s ease-out}td.tick-down{animation:flashDown 1.2s ease-out}
+.unlisted{margin-top:1.4rem;font-size:.95rem;color:var(--tan)}
+.unlisted b{font-weight:500;color:var(--brown)}
+
+/* notes */
+.notes{margin-block:3rem 4rem;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+.note{background:var(--purple-light);border:1px solid rgba(197,169,224,.3);border-radius:8px;padding:1.3rem 1.5rem;font-size:.95rem}
+.note h2{font-family:var(--font-display);font-weight:600;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--purple);margin-bottom:.5rem}
+.note a{color:var(--purple);font-weight:400}
+.site-footer{border-top:1px solid var(--line);padding-block:1.4rem;font-size:.9rem;color:var(--tan)}
+.footer-inner{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem 2rem}
+.footer-inner nav{display:flex;flex-wrap:wrap;gap:.2rem 1.4rem}
+.footer-inner a{text-decoration:none;display:inline-flex;align-items:center;min-height:44px}
+.footer-inner a:hover{color:var(--espresso);text-decoration:underline}
+
+/* entrance */
+.rise{opacity:0;transform:translateY(18px);animation:rise .6s ease-out forwards}
+.rise:nth-child(2){animation-delay:.08s}.rise:nth-child(3){animation-delay:.16s}.rise:nth-child(4){animation-delay:.24s}
+@keyframes rise{to{opacity:1;transform:none}}
+
+/* search */
+.ask{display:flex;gap:.4rem;margin-top:.5rem;max-width:760px}
+.ask input{flex:1;min-width:0;font:inherit;font-size:.92rem;font-weight:400;color:var(--espresso);background:var(--cream-2);border:1px solid var(--line-strong);border-radius:6px;padding:.35rem .7rem;min-height:34px}
+.ask input:focus{outline:2px solid var(--orange);outline-offset:1px}
+.ask button,.copy-btn{font:inherit;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;font-weight:500;background:var(--orange);color:#3b2a1e;border:0;border-radius:6px;padding:0 .9rem;min-height:34px;cursor:pointer}
+.copy-btn{min-height:24px;padding:0 .6rem;margin-left:.4rem}
+.ask button:hover,.copy-btn:hover{background:var(--orange-d)}
+.examples{display:inline-flex;flex-wrap:wrap;gap:.3rem;vertical-align:middle}
+.examples button{all:unset;cursor:pointer;font-size:.75rem;color:var(--tan);border:1px solid var(--line-strong);border-radius:999px;padding:.12rem .6rem;min-height:22px;line-height:22px}
+.examples button:hover,.examples button:focus-visible{color:var(--espresso);border-color:var(--orange)}
+.footnote{margin-top:.6rem;font-size:.85rem;color:var(--tan)}
+.footnote b{font-weight:500;color:var(--brown)}
+.unmatched{margin-top:.8rem;color:var(--orange-text);font-size:.95rem}
+.empty{padding-block:3rem;color:var(--tan)}
+.all-rows{margin-top:1.6rem}
+.all-rows>summary{cursor:pointer;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--tan);min-height:44px;display:flex;align-items:center}
+.all-rows>summary:hover{color:var(--espresso)}
+
+@media(max-width:1100px){
+  .wrap{padding-inline:2.5rem}
+  .col-m1,.col-y1,.col-range{display:none}
+}
+@media(max-width:820px){
+  .wrap{padding-inline:1.5rem}
+  .header-nav{gap:1.1rem}
+  .logo span{display:none}
+  .hero,.part-head{grid-template-columns:1fr;gap:1.2rem}
+  .stats{grid-template-columns:1fr 1fr}
+  .stat:nth-child(3){border-left:0;padding-left:0}
+  .stat:nth-child(n+3){border-top:1px solid var(--line)}
+  .notes{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  body{font-size:16px}
+  .wrap{padding-inline:1.1rem}
+  .header-nav a{font-size:.72rem;letter-spacing:.08em}
+  .header-inner{gap:.8rem}
+  .logo{font-size:.8rem;letter-spacing:.16em}
+  .col-ytd,.col-spark{display:none}
+  .co{gap:0 .7rem}.co a{padding-block:.1rem}.co .nm{flex-basis:100%;font-size:.88rem}
+  .co .ex{display:none}
+  tbody td{padding:.5rem .45rem;font-size:.92rem}
+  thead th{padding-inline:.45rem}
+  tr.group .g-note{display:block;margin:.2rem 0 0}
+  .part-head h2{font-size:1.8rem}
+  .stat{padding:.9rem .8rem}.stat-num{font-size:1.45rem}
+  .hm{height:620px}
+}
+/* Compact: a dashboard, not a landing page. Everything for one view fits on one screen. */
+body{font-size:14px;line-height:1.45}
+.wrap{max-width:none;padding-inline:clamp(.75rem,2vw,1.6rem)}
+.header-inner{min-height:44px;gap:1rem}
+.logo{font-size:.78rem;min-height:34px;letter-spacing:.2em}
+.header-nav{gap:1rem}.header-nav a{padding:.35rem 0;font-size:.7rem}
+.theme-btn{min-width:32px;min-height:32px;font-size:.9rem}
+.hero{display:block;padding-block:.7rem .6rem}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem 1.2rem}
+.now{font-family:var(--font-display);font-size:1.15rem;font-weight:500;color:var(--espresso)}
+.status{margin-top:0;font-size:.8rem;min-height:0}
+.chat-hint{margin-top:.35rem;font-size:.8rem;color:var(--tan)}
+.unmatched{margin-top:.35rem;font-size:.85rem}
+.part{padding-block:1rem .3rem}
+.part-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem 1rem;margin-bottom:.5rem}
+.part-head>div{display:flex;align-items:baseline;gap:.8rem;flex-wrap:wrap}
+.part-head h2{font-size:1.3rem;margin-top:0;order:-1}
+.part-head p{font-size:.82rem;max-width:none}
+.part-head .eyebrow{font-size:.66rem}
+.stats{display:flex;flex-wrap:wrap;gap:.2rem 1.8rem;border:0}
+.stat,.stat:first-child,.stat:nth-child(3){padding:0;border:0}
+.stat{display:flex;align-items:baseline;gap:.45rem}
+.stat-num{font-size:1rem;font-weight:500}.stat-num small{font-size:.75rem}
+.stat-label{font-size:.62rem;margin:0}
+.heat{margin-top:.5rem}
+.heat-bar{margin-bottom:.3rem}.heat-bar .lbl{font-size:.66rem}
+.seg button{min-height:26px;font-size:.66rem;padding:0 .55rem}
+.period{margin-bottom:.3rem;font-size:.7rem;gap:.2rem .8rem}
+.period input[type=range]{height:22px}
+.period-read{font-size:.78rem;margin-top:0}
+.hm{height:clamp(300px,calc(100vh - 210px),720px)}
+.heat-foot{margin-top:.35rem}.heat-read{font-size:.8rem;min-height:1.2rem}
+.table-wrap{margin-top:.9rem}
+thead th{font-size:.6rem;padding:.1rem .5rem}
+.sort{min-height:28px}
+tr.group th{padding:.7rem 0 .25rem}
+tr.group .g-name{font-size:.7rem}tr.group .g-note{font-size:.75rem}
+tbody td{padding:.25rem .5rem;font-size:.84rem}
+.co{gap:.5rem}.co a{font-size:.76rem;min-width:3.4rem;padding-block:.05rem}.co .ex{font-size:.64rem}
+td.spark svg{width:90px;height:20px}
+.range{width:80px}
+.all-rows{margin-top:.8rem}.all-rows>summary{min-height:30px;font-size:.7rem}
+.notes{margin-block:1.4rem 1.6rem;gap:.8rem;font-size:.78rem}
+.note{padding:.7rem .9rem}.note h2{font-size:.66rem;margin-bottom:.25rem}
+.site-footer{padding-block:.5rem;font-size:.72rem}
+.footer-inner a{min-height:0}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .rise{opacity:1;transform:none;animation:none}
+  td.tick-up,td.tick-down,.status .dot{animation:none!important}
+  *{transition:none!important}
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to the dashboard</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="logo" href="/">Stockwatcher</a>
+    <nav class="header-nav" id="nav" aria-label="Dashboard sections"></nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch to dark mode" aria-pressed="false">☾</button>
+  </div>
+</header>
+
+<main id="main">
+  <section class="wrap hero" aria-label="Current view">
+    <div class="bar">
+      <p class="now" id="now">Waiting for a request</p>
+      <p class="status" id="status" data-state="loading" role="status"><span class="dot" aria-hidden="true"></span><span id="statusText">Type what to show above, or ask in the chat.</span></p>
+    </div>
+    <form class="ask" id="ask" role="search">
+      <label class="sr-only" for="q">What to show: an index, a sector, a theme, companies, or a question about companies</label>
+      <input id="q" type="search" autocomplete="off" placeholder="S&amp;P 500 · healthcare · nvidia, amd and tesla · wallstreetbets · or ask in the chat">
+      <button type="submit">Show</button>
+    </form>
+    <p class="chat-hint"><span class="examples" id="examples" aria-label="Examples"></span> <span>Same as asking in the chat (Claude or Codex); questions that need a web search go to the chat.</span></p>
+    <p class="unmatched" id="unmatched" hidden></p>
+  </section>
+
+  <div id="parts"></div>
+
+  <section class="wrap notes" aria-label="About the numbers">
+    <div class="note">
+      <h2>Not investment advice</h2>
+      <p>This page shows public market prices so you can follow a sector. It does not recommend buying or selling anything.</p>
+    </div>
+    <div class="note">
+      <h2>Where the numbers come from</h2>
+      <p>Prices come from <a href="https://finance.yahoo.com/">Yahoo Finance</a>, or from <a href="https://www.nasdaq.com/">Nasdaq</a> when Yahoo is busy; sectors, industries and market values come from Nasdaq’s stock screener. Prices refresh about once a minute and can lag the exchange by 15 minutes or more. Each share is quoted in its own trading currency. The heat map’s slider compares the price now with the close that many days ago. “Since 1 Jan” compares with the last close of the previous year; “12 months” with the close a year ago, and is blank for shares listed more recently. Prices are adjusted for share splits. The 52-week range and the 60-day line use daily closing prices. “Basket” figures give every share equal weight.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <p>Stockwatcher runs on your computer. Not investment advice.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+  var REFRESH_MS = 60000;
+  var COLS = [
+    { key: 'd', label: 'Today', cls: '' },
+    { key: 'm', label: '1 month', cls: 'col-m1' },
+    { key: 'y', label: 'Since 1 Jan', cls: 'col-ytd' },
+    { key: 'a', label: '12 months', cls: 'col-y1' },
+    { key: 'cap', label: 'Market value', cls: 'col-cap' }
+  ];
+  var state = { data: null, sort: {}, prev: {}, win: 1, hist: null, dragging: false, open: {} };
+  var partsEl = document.getElementById('parts');
+  var statusEl = document.getElementById('status');
+  var statusText = document.getElementById('statusText');
+
+  // ---------- theme ----------
+  var themeBtn = document.getElementById('themeBtn');
+  function setTheme(dark, save) {
+    document.body.classList.toggle('dark-mode', dark);
+    themeBtn.setAttribute('aria-pressed', String(dark));
+    themeBtn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    themeBtn.textContent = dark ? '☀' : '☾';
+    if (save) { try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) {} }
+  }
+  var saved = null; try { saved = localStorage.getItem('theme'); } catch (e) {}
+  setTheme(saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches, false);
+  themeBtn.addEventListener('click', function () { setTheme(!document.body.classList.contains('dark-mode'), true); });
+
+  // ---------- formatting ----------
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function pct(v, digits) {
+    if (v == null) return '–';
+    var n = v * 100, d = digits == null ? (Math.abs(n) >= 100 ? 0 : 1) : digits;
+    return (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(d) + '%';
+  }
+  function dir(v) { return v == null || Math.abs(v) < 0.00005 ? 'flat' : v > 0 ? 'up' : 'down'; }
+  function arrow(v) { var d = dir(v); return d === 'up' ? '▲' : d === 'down' ? '▼' : '•'; }
+  function price(p, cur) {
+    var whole = cur === 'JPY' || cur === 'KRW' || p >= 10000;
+    return p.toLocaleString('en-GB', { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2 });
+  }
+  function median(a) { if (!a.length) return null; var s = a.slice().sort(function (x, y) { return x - y; }), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+  function mean(a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : null; }
+
+  // ---------- pieces ----------
+  function sparkline(s) {
+    if (!s || s.length < 2) return '';
+    var w = 120, h = 30, min = Math.min.apply(null, s), max = Math.max.apply(null, s), span = max - min || 1;
+    var d = s.map(function (v, i) {
+      return (i ? 'L' : 'M') + (i / (s.length - 1) * w).toFixed(1) + ' ' + (h - 3 - (v - min) / span * (h - 6)).toFixed(1);
+    }).join('');
+    var up = s[s.length - 1] >= s[0];
+    return '<svg viewBox="0 0 120 30" role="img" aria-label="Last 60 trading days: ' + pct(s[s.length - 1] / s[0] - 1) +
+      '"><path class="' + (up ? 's-up' : 's-down') + '" d="' + d + '"/></svg>';
+  }
+  function rangeBar(q) {
+    var pos = q.hi > q.lo ? (q.p - q.lo) / (q.hi - q.lo) : 0.5;
+    pos = Math.max(0, Math.min(1, pos));
+    return '<span class="range" role="img" aria-label="' + Math.round(pos * 100) + '% of the way from the 52-week low to the high"><i style="left:' + (pos * 100).toFixed(1) + '%"></i></span>';
+  }
+  // ---------- heat map: blocks sized by market value, coloured by change ----------
+  var DAY_MS = 86400000;
+  function ytdDays() { var n = new Date(); return Math.max(1, Math.round((Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()) - Date.UTC(n.getFullYear() - 1, 11, 31)) / DAY_MS)); }
+  var PRESETS = [
+    { id: 'd', label: 'Today', days: function () { return 1; }, field: 'd' },
+    { id: 'm', label: '1 month', days: function () { return 30; }, field: 'm' },
+    { id: 'y', label: 'Since 1 Jan', days: ytdDays, field: 'y' },
+    { id: 'a', label: '12 months', days: function () { return 365; }, field: 'a' }
+  ];
+  function fullFor(n) { return n <= 1 ? 0.03 : 0.03 * Math.sqrt(n * 0.69); }
+  function periodName(n) {
+    if (n <= 1) return 'today';
+    if (n === 365) return 'over 12 months';
+    return 'over ' + (n < 60 ? n + ' days' : Math.round(n / 30.44) + ' months');
+  }
+  function sinceDate(n) { return new Date(Date.now() - n * DAY_MS).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+  // Change over the chosen period: the price now against the close N calendar days earlier.
+  function periodChange(sym, q) {
+    var n = state.win;
+    if (n <= 1) return q.d;
+    var h = state.hist && state.hist[sym];
+    if (!h) { var pre = PRESETS.filter(function (p) { return p.days() === n; })[0]; return pre ? q[pre.field] : null; }
+    var cut = h.t[h.t.length - 1] - n, i = h.t.length - 1;
+    while (i >= 0 && h.t[i] > cut) i--;
+    if (i < 0) { if (h.t[0] <= cut + 5) i = 0; else return null; }
+    return h.c[i] ? q.p / h.c[i] - 1 : null;
+  }
+  function tileColor(v, full) {
+    if (v == null) return 'var(--hm-flat)';
+    var k = Math.min(1, Math.abs(v) / full);
+    if (k < 0.04) return 'var(--hm-flat)';
+    return 'color-mix(in srgb, var(' + (v > 0 ? '--hm-up' : '--hm-down') + ') ' + Math.round(22 + 78 * k) + '%, var(--hm-flat))';
+  }
+  function money(v) {
+    if (!v) return '';
+    if (v >= 1e12) return '$' + (v / 1e12).toFixed(2) + 'tn';
+    if (v >= 1e9) return '$' + (v / 1e9).toFixed(v >= 1e10 ? 0 : 1) + 'bn';
+    return '$' + Math.round(v / 1e6) + 'm';
+  }
+  // Squarified treemap (Bruls, Huizing, van Wijk): keeps blocks as close to square as it can.
+  function squarify(items, x, y, w, h) {
+    var out = [], list = items.filter(function (i) { return i.v > 0; }).sort(function (a, b) { return b.v - a.v; });
+    var total = list.reduce(function (s, i) { return s + i.v; }, 0);
+    if (!total || w <= 0 || h <= 0) return out;
+    var scale = w * h / total, i = 0;
+    function worst(row, sum, side) {
+      var max = row[0].v * scale, min = row[row.length - 1].v * scale, s2 = sum * sum, side2 = side * side;
+      return Math.max(side2 * max / s2, s2 / (side2 * min));
+    }
+    while (i < list.length) {
+      var side = Math.min(w, h), row = [list[i]], sum = list[i].v * scale; i++;
+      while (i < list.length) {
+        var next = list[i].v * scale;
+        if (worst(row.concat(list[i]), sum + next, side) > worst(row, sum, side)) break;
+        row.push(list[i]); sum += next; i++;
+      }
+      var thick = sum / side, off = 0;
+      row.forEach(function (it) {
+        var len = it.v * scale / thick;
+        out.push(w >= h ? { it: it, x: x, y: y + off, w: thick, h: len } : { it: it, x: x + off, y: y, w: len, h: thick });
+        off += len;
+      });
+      if (w >= h) { x += thick; w -= thick; } else { y += thick; h -= thick; }
+    }
+    return out;
+  }
+  function heat(part, rows) {
+    var seg = PRESETS.map(function (p) { return '<button type="button" data-preset="' + p.id + '" aria-pressed="false">' + p.label + '</button>'; }).join('');
+    var sized = rows.some(function (r) { return r.q.cap; });
+    return '<div class="heat"><div class="heat-bar"><span class="lbl">Heat map · ' + (part.sizeBy === 'held' || part.sizeBy === 'qty' ? 'block size is the position’s value' : sized ? 'block size is market value' : 'equal blocks') + '</span>' +
+      '<div class="seg" role="group" aria-label="Quick periods">' + seg + '</div></div>' +
+      '<div class="period"><span aria-hidden="true">Today</span><input type="range" min="1" max="365" step="1" value="' + state.win + '" aria-label="Period for the colours, in days back from today">' +
+      '<span aria-hidden="true">12 months</span><p class="period-read"></p></div>' +
+      // Taller for whole indices so 500 blocks stay readable (CoinGlass-style market map).
+      '<div class="hm" data-part="' + part.id + '" role="group"' + (rows.length > 60 ? ' style="height:max(520px,calc(100vh - 120px))"' : '') + '></div>' +
+      '<div class="heat-foot"><p class="heat-read" id="read-' + part.id + '">Tap or point at a block to read it.</p>' +
+      '<div class="legend" aria-hidden="true"></div></div></div>';
+  }
+  // Brings every heat map's controls in line with the chosen period, then redraws the blocks.
+  function syncHeat() {
+    var n = state.win, full = fullFor(n), hasHist = !!state.hist;
+    var steps = [-1, -0.66, -0.33, 0, 0.33, 0.66, 1].map(function (k) { return '<i style="background:' + tileColor(k * full, full) + '"></i>'; }).join('');
+    Array.prototype.forEach.call(partsEl.querySelectorAll('.heat'), function (el) {
+      var range = el.querySelector('input[type=range]');
+      if (document.activeElement !== range) range.value = n;
+      range.disabled = !hasHist;
+      range.setAttribute('aria-valuetext', n <= 1 ? 'Today' : n + ' days, since ' + sinceDate(n));
+      el.querySelector('.period-read').innerHTML = n <= 1
+        ? 'Colour shows the move <b>today</b>, against the previous close.' + (hasHist ? ' Drag to look further back.' : '')
+        : 'Colour shows the change <b>' + periodName(n) + '</b>, since ' + sinceDate(n) + '.';
+      Array.prototype.forEach.call(el.querySelectorAll('[data-preset]'), function (b) {
+        var p = PRESETS.filter(function (x) { return x.id === b.dataset.preset; })[0];
+        b.setAttribute('aria-pressed', String(p.days() === n));
+      });
+      el.querySelector('.legend').innerHTML = '<span>' + pct(-full, 0) + '</span>' + steps + '<span>' + pct(full, 0) + '</span>';
+      el.querySelector('.hm').setAttribute('aria-label', 'Heat map of shares grouped by segment, coloured by the change ' + periodName(n));
+    });
+    layoutHeat();
+  }
+  function layoutHeat() {
+    var data = state.data; if (!data) return;
+    Array.prototype.forEach.call(partsEl.querySelectorAll('.hm'), function (box) {
+      var part = data.universe.filter(function (p) { return p.id === box.dataset.part; })[0]; if (!part) return;
+      var full = fullFor(state.win), word = periodName(state.win), W = box.clientWidth, H = box.clientHeight, HEAD = 20;
+      var caps = [];
+      // A fund's portfolio is sized by how much it holds of each share, everything else by market value.
+      // The person's own portfolio: shares × today's price (and its share of the total).
+      if (part.sizeBy === 'qty') {
+        var worth = 0;
+        part.groups.forEach(function (g) { g.stocks.forEach(function (s) { var q = data.quotes[s.y]; s.held = q && s.qty ? s.qty * q.p : 0; worth += s.held; }); });
+        part.groups.forEach(function (g) { g.stocks.forEach(function (s) { s.weight = worth ? s.held / worth : 0; }); });
+      }
+      var size = part.sizeBy === 'held' || part.sizeBy === 'qty' ? function (s) { return s.held; } : function (s, q) { return q.cap; };
+      part.groups.forEach(function (g) { g.stocks.forEach(function (s) { var q = data.quotes[s.y]; if (q && size(s, q)) caps.push(size(s, q)); }); });
+      var fallback = median(caps) || 1, sum = 0;
+      var groups = part.groups.map(function (g) {
+        var kids = g.stocks.filter(function (s) { return data.quotes[s.y]; }).map(function (s) {
+          var q = data.quotes[s.y]; return { s: s, q: q, v: size(s, q) || fallback };
+        });
+        var v = kids.reduce(function (a, k) { return a + k.v; }, 0); sum += v;
+        return { name: g.name, kids: kids, v: v };
+      });
+      // Keep the smallest companies and segments large enough to see and to tap.
+      groups.forEach(function (g) {
+        g.kids.forEach(function (k) { k.v = Math.max(k.v, sum * 0.0012); });
+        g.v = Math.max(g.kids.reduce(function (a, k) { return a + k.v; }, 0), sum * 0.02);
+      });
+      var html = '';
+      squarify(groups, 0, 0, W, H).forEach(function (gr) {
+        var g = gr.it;
+        html += '<div class="hm-group" style="left:' + gr.x.toFixed(1) + 'px;top:' + gr.y.toFixed(1) + 'px;width:' + gr.w.toFixed(1) + 'px;height:' + gr.h.toFixed(1) + 'px">' +
+          '<div class="hm-head" title="' + esc(g.name) + '">' + esc(g.name) + '</div>';
+        squarify(g.kids, 0, HEAD, gr.w, Math.max(0, gr.h - HEAD)).forEach(function (r, n) {
+          var k = r.it, v = periodChange(k.s.y, k.q), fs = Math.max(9, Math.min(26, r.w / 4.6, r.h / 2.7));
+          var showT = r.w >= 30 && r.h >= 15, showP = showT && r.h >= fs * 2.6 && r.w >= 40;
+          var read = k.s.n + ' (' + k.s.t + ') ' + (v == null ? 'not listed long enough for this period' : pct(v, 2) + ' ' + word) + (k.s.held ? ' · held ' + money(k.s.held) + ' (' + (k.s.weight * 100).toFixed(1) + '% of the portfolio)' : '') + (k.q.cap ? ' · market value ' + money(k.q.cap) : '');
+          html += '<div class="hm-tile" tabindex="0" role="img" aria-label="' + esc(read) + '" title="' + esc(read) + '" data-read="' + esc(read) +
+            '" style="left:' + r.x.toFixed(1) + 'px;top:' + r.y.toFixed(1) + 'px;width:' + r.w.toFixed(1) + 'px;height:' + r.h.toFixed(1) + 'px;background:' + tileColor(v, full) + '">' + (showT ? '<b style="font-size:' + fs.toFixed(1) + 'px">' + esc(k.s.t) + '</b>' : '') +
+            (showP && v != null ? '<span style="font-size:' + Math.max(9, fs * 0.62).toFixed(1) + 'px">' + pct(v) + '</span>' : '') + '</div>';
+        });
+        html += '</div>';
+      });
+      box.innerHTML = html;
+    });
+  }
+  function stats(rows) {
+    var d = rows.map(function (r) { return r.q.d; }).filter(function (v) { return v != null; });
+    var y = rows.map(function (r) { return r.q.y; }).filter(function (v) { return v != null; });
+    var upN = d.filter(function (v) { return v > 0; }).length, downN = d.filter(function (v) { return v < 0; }).length;
+    var avg = mean(d), medY = median(y);
+    var nearHigh = rows.filter(function (r) { return r.q.hi > r.q.lo && (r.q.p - r.q.lo) / (r.q.hi - r.q.lo) >= 0.8; }).length;
+    return '<div class="stats">' +
+      '<div class="stat"><p class="stat-num ' + dir(avg) + '">' + pct(avg, 2) + '</p><p class="stat-label">Basket today</p></div>' +
+      '<div class="stat"><p class="stat-num"><span class="up">' + upN + '</span><small>up</small> <span class="down">' + downN + '</span><small>down</small></p><p class="stat-label">Shares moving</p></div>' +
+      '<div class="stat"><p class="stat-num ' + dir(medY) + '">' + pct(medY) + '</p><p class="stat-label">Typical share since 1 Jan</p></div>' +
+      '<div class="stat"><p class="stat-num">' + nearHigh + '<small>of ' + rows.length + '</small></p><p class="stat-label">Near their 52-week high</p></div>' +
+      '</div>';
+  }
+  function chgCell(v, cls) {
+    return '<td class="chg ' + dir(v) + ' ' + cls + '"><span aria-hidden="true">' + (v == null ? '' : arrow(v) + ' ') + '</span>' + pct(v) + '</td>';
+  }
+  function table(part, groups) {
+    var sort = state.sort[part.id] || { key: 'd', desc: true };
+    var head = '<tr><th scope="col">Company</th><th scope="col">Price</th>' + COLS.map(function (c) {
+      var on = sort.key === c.key;
+      return '<th scope="col" class="' + c.cls + '"' + (on ? ' aria-sort="' + (sort.desc ? 'descending' : 'ascending') + '"' : '') +
+        '><button class="sort" type="button" data-part="' + part.id + '" data-key="' + c.key + '">' + c.label +
+        ' <i aria-hidden="true">' + (on ? (sort.desc ? '▼' : '▲') : '▼') + '</i></button></th>';
+    }).join('') + '<th scope="col" class="col-range">52-week range</th><th scope="col" class="col-spark">60 days</th></tr>';
+    var body = groups.map(function (g) {
+      var rows = g.rows.slice().sort(function (a, b) {
+        var x = a.q[sort.key], y = b.q[sort.key];
+        if (x == null) return 1; if (y == null) return -1;
+        return sort.desc ? y - x : x - y;
+      });
+      return '<tr class="group"><th colspan="9" scope="colgroup"><span class="g-name">' + esc(g.name) + '</span><span class="g-note">' + esc(g.note) + '</span></th></tr>' +
+        rows.map(function (r) {
+          var q = r.q, s = r.s, was = state.prev[s.y], tick = was != null && was !== q.p ? (q.p > was ? ' tick-up' : ' tick-down') : '';
+          return '<tr class="row"><td><div class="co"><a href="https://finance.yahoo.com/quote/' + encodeURIComponent(s.y) + '/" rel="noopener" title="Open ' + esc(s.n) + ' on Yahoo Finance">' +
+            esc(s.t) + '</a><span class="nm">' + esc(s.n) + '</span><span class="ex">' + esc(s.x) + '</span></div></td>' +
+            '<td class="price' + tick + '">' + price(q.p, s.c) + '<span class="cur">' + esc(s.c) + '</span></td>' +
+            chgCell(q.d, '') + chgCell(q.m, 'col-m1') + chgCell(q.y, 'col-ytd') + chgCell(q.a, 'col-y1') +
+            '<td class="col-cap">' + (q.cap ? money(q.cap) : '–') + '</td>' +
+            '<td class="col-range">' + rangeBar(q) + '</td><td class="spark col-spark">' + sparkline(q.s) + '</td></tr>';
+        }).join('');
+    }).join('');
+    return '<div class="table-wrap"><table><caption class="sr-only">' + esc(part.title) + ': price and performance by company, grouped by segment</caption><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+  }
+
+  function render() {
+    var data = state.data, html = '', nav = '';
+    data.universe.forEach(function (part) {
+      var groups = part.groups.map(function (g) {
+        return { name: g.name, note: g.note, rows: g.stocks.filter(function (s) { return data.quotes[s.y]; }).map(function (s) { return { s: s, q: data.quotes[s.y] }; }) };
+      }).filter(function (g) { return g.rows.length; });
+      var rows = groups.reduce(function (a, g) { return a.concat(g.rows); }, []);
+      if (!rows.length) return;
+      nav += '<a href="#' + esc(part.id) + '">' + esc(part.title) + '</a>';
+      html += '<section class="wrap part" id="' + esc(part.id) + '" aria-labelledby="h-' + esc(part.id) + '">' +
+        '<div class="part-head"><div><p class="eyebrow">' + rows.length + ' listed shares</p><h2 id="h-' + esc(part.id) + '">' + esc(part.title) + '</h2></div><p>' + esc(part.blurb || '') + '</p></div>' +
+        stats(rows) + (rows.length > 1 ? heat(part, rows) : '') +
+        // The share table is open by default; a long one can be folded away and stays folded.
+        (rows.length > 80 ? '<details class="all-rows"' + (state.open[part.id] === false ? '' : ' open') + ' data-part="' + esc(part.id) + '"><summary>All ' + rows.length + ' shares (click to fold)</summary>' + table(part, groups) + '</details>' : table(part, groups)) +
+        (part.footnote ? '<p class="footnote">' + esc(part.footnote).replace(/^([^:]{1,40}):/, '<b>$1:</b>') + '</p>' : '') +
+        '</section>';
+    });
+    if (!html && data.universe.length) html = '<p class="wrap empty">No prices came back for these shares. The data feeds may be busy; this page retries every minute.</p>';
+    document.getElementById('nav').innerHTML = data.universe.length > 1 ? nav : '';
+    var keep = document.activeElement && document.activeElement.matches('.sort,[data-preset],input[type=range]')
+      ? { part: document.activeElement.dataset.part, key: document.activeElement.dataset.key, preset: document.activeElement.dataset.preset, range: document.activeElement.type === 'range', host: (document.activeElement.closest('.part') || {}).id } : null;
+    partsEl.innerHTML = html;
+    if (keep) { var b = partsEl.querySelector(keep.range ? '#' + keep.host + ' input[type=range]' : keep.preset ? '#' + keep.host + ' [data-preset="' + keep.preset + '"]' : '.sort[data-part="' + keep.part + '"][data-key="' + keep.key + '"]'); if (b) b.focus(); }
+    syncHeat();
+    Object.keys(data.quotes).forEach(function (k) { state.prev[k] = data.quotes[k].p; });
+  }
+
+  function showStatus() {
+    var d = state.data, when = new Date(d.updated);
+    var time = when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    var day = when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    var today = new Date().toDateString() === when.toDateString();
+    if (d.source === 'live' || d.source === 'stale') {
+      statusEl.dataset.state = 'live';
+      statusText.textContent = (d.source === 'stale' ? 'Refreshing · ' : 'Live · ') + 'prices updated ' + (today ? 'at ' + time : day + ', ' + time) + ' your time'
+        + (d.feeds && d.feeds.length ? ' (' + d.feeds.join(' + ') + ')' : '');
+    } else if (d.source === 'loading') {
+      statusEl.dataset.state = 'loading'; statusText.textContent = 'Loading prices…';
+    } else {
+      statusEl.dataset.state = 'saved';
+      statusText.textContent = 'The live feed is not answering. Showing prices saved ' + day + ', ' + time + '; retrying every minute.';
+    }
+  }
+
+  // ---------- what to show ----------
+  var nowEl = document.getElementById('now'), askEl = document.getElementById('ask'), qEl = document.getElementById('q');
+  var unmatchedEl = document.getElementById('unmatched'), examplesEl = document.getElementById('examples');
+  state.q = new URLSearchParams(location.search).get('q') || '';
+  function apiUrl(path) { return path + '?q=' + encodeURIComponent(state.q); }
+  function showExamples(v) {
+    if (!v || examplesEl.childElementCount) return;
+    var picks = ['show me the S&P 500', 'what is wallstreetbets talking about', 'healthcare stocks', 'nvidia, amd and tesla', 'who invested in OpenAI', 'neoclouds'];
+    examplesEl.innerHTML = picks.map(function (s) { return '<button type="button" data-say="' + esc(s) + '">' + esc(s) + '</button>'; }).join('');
+  }
+  // Header text for a request: named lists show their titles ("OpenAI investors · Dow Jones").
+  function label(q) {
+    var t = q.split(';').map(function (p) { var m = /^\s*([^:;|$]{2,60}?)\s*:/.exec(p); return (m ? m[1] : p).trim(); }).join(' · ');
+    return t.length > 90 ? t.slice(0, 88) + '…' : t;
+  }
+  // Which window this page is: "main", or a separate one opened from the chat (?w=w2).
+  state.w = /^[a-z0-9-]{1,20}$/i.test(new URLSearchParams(location.search).get('w') || '') ? new URLSearchParams(location.search).get('w') : 'main';
+  // A new request (from the chat, the box or a button): switch the whole page to it.
+  function show(q) {
+    state.q = q || ''; state.hist = null; state.data = null; state.sort = {}; state.tries = 0; clearTimeout(state.again);
+    qEl.value = state.q;
+    nowEl.textContent = state.q ? label(state.q) : 'Waiting for a request';
+    document.title = state.q ? label(state.q) + ' · Stockwatcher' : 'Stockwatcher';
+    var params = [state.q ? 'q=' + encodeURIComponent(state.q) : '', state.w !== 'main' ? 'w=' + state.w : ''].filter(Boolean).join('&');
+    history.replaceState(null, '', params ? '?' + params : location.pathname);
+    partsEl.innerHTML = ''; unmatchedEl.hidden = true; load();
+  }
+  // The box and the buttons do what the chat does: the request becomes this window's view
+  // (other pages showing the window follow). Only research questions need the chat.
+  function ask(q) {
+    q = String(q || '').trim(); if (!q) return;
+    state.fromPage = true; show(q);
+    getJson('api/show?q=' + encodeURIComponent(q) + '&w=' + state.w).catch(function () {});
+  }
+  askEl.addEventListener('submit', function (e) { e.preventDefault(); ask(qEl.value); });
+  examplesEl.addEventListener('click', function (e) { var b = e.target.closest('[data-say]'); if (b) ask(b.dataset.say); });
+  unmatchedEl.addEventListener('click', function (e) {
+    var b = e.target.closest('.copy-btn'); if (!b) return;
+    var done = function () { b.textContent = 'Copied: paste it in the chat'; };
+    // Copies the skill call with the person's words, ready to paste into the chat.
+    var call = '/stockwatcher ' + state.q;
+    if (navigator.clipboard) navigator.clipboard.writeText(call).then(done, function () {}); else done();
+  });
+  // The chat runs the command; the server tells every page of this window about the new view.
+  if (window.EventSource) {
+    var events = new EventSource('api/events?w=' + state.w), version = null;
+    // After the skill is updated the server restarts with a new version: reload to get the new page.
+    var seeVersion = function (v) { if (!v) return; if (version && v !== version) location.reload(); version = v; };
+    events.addEventListener('hello', function (e) { try { seeVersion(JSON.parse(e.data).v); } catch (err) {} });
+    events.onmessage = function (e) { try { var d = JSON.parse(e.data); seeVersion(d.v); if (d.q !== state.q) { state.fromPage = false; show(d.q); } } catch (err) {} };
+  }
+
+  function getJson(url) {
+    return fetch(url, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+  }
+  function loadHistory() {
+    var q = state.q;
+    getJson(apiUrl('api/history')).then(function (h) { if (h && h.series && q === state.q) { state.hist = h.series; syncHeat(); } }).catch(function () {});
+  }
+  function load() {
+    if (!state.q) { getJson('api/vocab').then(showExamples).catch(function () {}); statusEl.dataset.state = 'loading'; statusText.textContent = 'Type what to show above, or ask in the chat.'; return Promise.resolve(); }
+    var q = state.q;
+    if (!state.data) { statusEl.dataset.state = 'loading'; statusText.textContent = 'Loading prices…'; }
+    return getJson(apiUrl('api/dashboard')).then(function (d) {
+      if (q !== state.q) return;
+      if (!d || !d.quotes || !d.universe) throw new Error('bad');
+      showExamples(d.vocab);
+      // What the local data cannot answer is being researched by the agent in the chat.
+      var asking = (d.research || []).concat(d.unmatched || []);
+      var msgs = (d.notes || []).slice();
+      // Asked in the chat: the agent is already searching. Typed here: only the chat can search
+      // the web, so hand the request over.
+      var list = asking.map(function (x) { return '“' + esc(x) + '”'; }).join(', ');
+      if (asking.length) msgs.push(state.fromPage
+        ? 'Needs a web search, which only the chat can do: ' + list + '. Ask it in the chat (Claude or Codex) and this page updates by itself. <button type="button" class="copy-btn">Copy request</button>'
+        : 'Being looked up in the chat: ' + list + '. This page updates by itself when the answer is in.');
+      unmatchedEl.hidden = !msgs.length;
+      unmatchedEl.innerHTML = msgs.map(function (m, i) { return i < (d.notes || []).length ? esc(m) : m; }).join(' ');
+      state.data = d; showStatus();
+      // Name the view after what is shown (a pasted link would otherwise read "https").
+      if (d.universe.length) { nowEl.textContent = d.universe.map(function (p) { return p.title; }).join(' · '); document.title = nowEl.textContent + ' · Stockwatcher'; }
+      if (!d.universe.length) { partsEl.innerHTML = ''; statusEl.dataset.state = 'loading'; statusText.textContent = asking.length ? 'Waiting for the chat to finish its research…' : 'Nothing to show yet.'; return; }
+      if (state.dragging) { layoutHeat(); } else { render(); }
+      // The server answers fast with what it has; ask again shortly for the rest.
+      var waiting = (d.pending && d.pending.length) || d.stale;
+      clearTimeout(state.again);
+      if (waiting && (state.tries = (state.tries || 0) + 1) <= 8) {
+        if (d.pending && d.pending.length) { statusEl.dataset.state = 'loading'; statusText.textContent = 'Loading ' + d.pending.length + ' more shares…'; }
+        state.again = setTimeout(function () { if (q === state.q) load(); }, d.pending && d.pending.length ? 1200 : 2500);
+      } else { state.tries = 0; }
+      if (!state.hist && !(d.pending && d.pending.length)) loadHistory();
+    }).catch(function () {
+      if (state.data) { statusEl.dataset.state = 'saved'; statusText.textContent = 'Could not refresh just now. Showing the last prices received; retrying every minute.'; }
+      else { statusEl.dataset.state = 'error'; statusText.textContent = 'Prices could not be loaded. Reload the page to try again.'; }
+    });
+  }
+
+  partsEl.addEventListener('click', function (e) {
+    var b = e.target.closest('.sort'); if (!b) return;
+    var cur = state.sort[b.dataset.part] || { key: 'd', desc: true };
+    state.sort[b.dataset.part] = { key: b.dataset.key, desc: cur.key === b.dataset.key ? !cur.desc : true };
+    render();
+  });
+  partsEl.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-preset]'); if (!b) return;
+    state.win = PRESETS.filter(function (p) { return p.id === b.dataset.preset; })[0].days(); syncHeat();
+  });
+  partsEl.addEventListener('input', function (e) {
+    if (e.target.type !== 'range') return;
+    state.win = +e.target.value; syncHeat();
+  });
+  // Keep a folded table open across the once-a-minute refresh.
+  partsEl.addEventListener('toggle', function (e) { if (e.target.matches && e.target.matches('details.all-rows')) state.open[e.target.dataset.part] = e.target.open; }, true);
+  partsEl.addEventListener('pointerdown', function (e) { if (e.target.type === 'range') state.dragging = true; });
+  addEventListener('pointerup', function () { state.dragging = false; });
+  addEventListener('pointercancel', function () { state.dragging = false; });
+  function readTile(e) {
+    var t = e.target.closest ? e.target.closest('.hm-tile') : null; if (!t) return;
+    t.closest('.heat').querySelector('.heat-read').textContent = t.dataset.read;
+  }
+  partsEl.addEventListener('mouseover', readTile);
+  partsEl.addEventListener('focusin', readTile);
+  partsEl.addEventListener('click', readTile);
+  var resizeTimer;
+  addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(layoutHeat, 150); });
+  // A tab that was hidden or zero-sized when drawn (a background tab, a pane opening) gets its
+  // heat map drawn as soon as the box has a size, without waiting for a window resize.
+  if (window.ResizeObserver) {
+    var sized = new WeakMap();
+    var boxWatch = new ResizeObserver(function (entries) {
+      var grew = entries.some(function (e) { var w = Math.round(e.contentRect.width), was = sized.get(e.target); sized.set(e.target, w); return w > 0 && w !== was; });
+      if (grew) { clearTimeout(resizeTimer); resizeTimer = setTimeout(layoutHeat, 60); }
+    });
+    new MutationObserver(function () { Array.prototype.forEach.call(partsEl.querySelectorAll('.hm'), function (b) { if (!sized.has(b)) { sized.set(b, b.clientWidth); boxWatch.observe(b); } }); })
+      .observe(partsEl, { childList: true, subtree: false });
+  }
+
+  show(state.q);
+  // Opened without a request (or the address was cleared): pick up what the chat last asked for.
+  if (!state.q) getJson('api/current?w=' + state.w).then(function (c) { if (c && c.q && !state.q) show(c.q); }).catch(function () {});
+  setInterval(function () { if (!document.hidden && state.q) load(); }, REFRESH_MS);
+  setInterval(function () { if (!document.hidden && state.q) loadHistory(); }, 3600000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && state.data && Date.now() - state.data.updated > REFRESH_MS) load(); });
+})();
+</script>
+</body>
+</html>

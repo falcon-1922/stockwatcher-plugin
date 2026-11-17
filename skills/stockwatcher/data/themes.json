@@ -1,0 +1,572 @@
+[
+ {
+  "id": "neocloud",
+  "title": "Neoclouds",
+  "aliases": [
+   "neocloud",
+   "neoclouds",
+   "gpu cloud",
+   "gpu clouds",
+   "ai cloud",
+   "ai infrastructure",
+   "ai compute",
+   "bitcoin miners",
+   "crypto miners",
+   "data centers",
+   "data centres",
+   "datacenters"
+  ],
+  "blurb": "Companies whose business is renting out GPUs for AI, and the Bitcoin miners and data-centre owners leasing power and halls to AI tenants.",
+  "groups": [
+   {
+    "name": "GPU cloud operators",
+    "note": "Rent out AI compute as their main business.",
+    "stocks": [
+     "CRWV",
+     "NBIS",
+     "IREN",
+     "CHRN",
+     "WYFI",
+     "DOCN",
+     [
+      "OVH.PA",
+      "OVH",
+      "OVHcloud",
+      "Paris",
+      "EUR"
+     ],
+     [
+      "3778.T",
+      "3778",
+      "Sakura Internet",
+      "Tokyo",
+      "JPY"
+     ],
+     [
+      "E2E.NS",
+      "E2E",
+      "E2E Networks",
+      "NSE India",
+      "INR"
+     ],
+     "SHAZ",
+     "BRUN",
+     "RUM"
+    ]
+   },
+   {
+    "name": "Miners and landlords turning to AI",
+    "note": "Bitcoin miners and data-centre owners leasing power and halls to AI tenants.",
+    "stocks": [
+     "APLD",
+     "CORZ",
+     "GLXY",
+     "WULF",
+     "CIFR",
+     "HUT",
+     "BTDR",
+     "RIOT",
+     "CLSK",
+     "MARA",
+     "HIVE",
+     "BTBT",
+     "KEEL",
+     "SLNH",
+     "NUAI"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "chips",
+  "title": "Chips",
+  "aliases": [
+   "chips",
+   "chip",
+   "chipmakers",
+   "chip makers",
+   "semis",
+   "semiconductor stocks",
+   "semiconductor supply chain"
+  ],
+  "blurb": "The listed semiconductor chain: AI processors, memory, foundries, fab equipment, connectivity, analog and chip-design software.",
+  "groups": [
+   {
+    "name": "AI accelerators and processors",
+    "note": "Design the chips that train and run models.",
+    "stocks": [
+     "NVDA",
+     "AVGO",
+     "AMD",
+     "INTC",
+     "QCOM",
+     "MRVL",
+     "ARM",
+     "CBRS",
+     [
+      "2454.TW",
+      "2454",
+      "MediaTek",
+      "Taiwan",
+      "TWD"
+     ],
+     [
+      "688256.SS",
+      "688256",
+      "Cambricon",
+      "Shanghai",
+      "CNY"
+     ]
+    ]
+   },
+   {
+    "name": "Memory",
+    "note": "DRAM, high-bandwidth memory and flash.",
+    "stocks": [
+     "MU",
+     [
+      "000660.KS",
+      "000660",
+      "SK Hynix",
+      "Korea",
+      "KRW"
+     ],
+     [
+      "005930.KS",
+      "005930",
+      "Samsung Electronics",
+      "Korea",
+      "KRW"
+     ],
+     "SNDK",
+     [
+      "285A.T",
+      "285A",
+      "Kioxia",
+      "Tokyo",
+      "JPY"
+     ]
+    ]
+   },
+   {
+    "name": "Foundries",
+    "note": "Manufacture chips for the designers.",
+    "stocks": [
+     "TSM",
+     "GFS",
+     "UMC",
+     [
+      "0981.HK",
+      "0981",
+      "SMIC",
+      "Hong Kong",
+      "HKD"
+     ]
+    ]
+   },
+   {
+    "name": "Equipment and test",
+    "note": "Build the machines the fabs run on.",
+    "stocks": [
+     "ASML",
+     "AMAT",
+     "LRCX",
+     "KLAC",
+     [
+      "8035.T",
+      "8035",
+      "Tokyo Electron",
+      "Tokyo",
+      "JPY"
+     ],
+     [
+      "6857.T",
+      "6857",
+      "Advantest",
+      "Tokyo",
+      "JPY"
+     ],
+     [
+      "6146.T",
+      "6146",
+      "Disco",
+      "Tokyo",
+      "JPY"
+     ],
+     [
+      "6920.T",
+      "6920",
+      "Lasertec",
+      "Tokyo",
+      "JPY"
+     ],
+     [
+      "ASM.AS",
+      "ASM",
+      "ASM International",
+      "Amsterdam",
+      "EUR"
+     ],
+     [
+      "BESI.AS",
+      "BESI",
+      "BE Semiconductor",
+      "Amsterdam",
+      "EUR"
+     ],
+     "TER",
+     "ONTO"
+    ]
+   },
+   {
+    "name": "Connectivity and optics",
+    "note": "Move data between chips, racks and halls.",
+    "stocks": [
+     "ALAB",
+     "CRDO",
+     "COHR",
+     "LITE",
+     "MTSI",
+     "RMBS"
+    ]
+   },
+   {
+    "name": "Analog, power and automotive",
+    "note": "The chips around the processor: power, sensing, control.",
+    "stocks": [
+     "TXN",
+     "ADI",
+     "NXPI",
+     "MPWR",
+     "MCHP",
+     "ON",
+     "STM",
+     [
+      "IFX.DE",
+      "IFX",
+      "Infineon",
+      "Xetra",
+      "EUR"
+     ],
+     [
+      "6723.T",
+      "6723",
+      "Renesas",
+      "Tokyo",
+      "JPY"
+     ]
+    ]
+   },
+   {
+    "name": "Design software, packaging and materials",
+    "note": "Tools to design chips, and the steps after the wafer.",
+    "stocks": [
+     "SNPS",
+     "CDNS",
+     "ASX",
+     "AMKR",
+     "ENTG"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "bigtech",
+  "title": "Big Tech",
+  "aliases": [
+   "magnificent 7",
+   "magnificent seven",
+   "mag 7",
+   "mag7",
+   "big tech",
+   "megacaps",
+   "mega caps",
+   "faang"
+  ],
+  "blurb": "The largest US technology companies by market value.",
+  "groups": [
+   {
+    "name": "Magnificent Seven",
+    "note": "The seven mega-caps that drive the index.",
+    "stocks": [
+     "AAPL",
+     "MSFT",
+     "NVDA",
+     "AMZN",
+     "GOOGL",
+     "META",
+     "TSLA"
+    ]
+   },
+   {
+    "name": "Next in line",
+    "note": "Other trillion-dollar-class tech names.",
+    "stocks": [
+     "AVGO",
+     "ORCL",
+     "NFLX",
+     "PLTR"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "ai",
+  "title": "AI",
+  "aliases": [
+   "ai",
+   "artificial intelligence",
+   "ai stocks",
+   "genai",
+   "generative ai",
+   "llm",
+   "ai software"
+  ],
+  "blurb": "Who builds, sells and runs AI: chips, clouds, models and the software on top.",
+  "groups": [
+   {
+    "name": "Chips",
+    "note": "Processors and memory for training and inference.",
+    "stocks": [
+     "NVDA",
+     "AMD",
+     "AVGO",
+     "MU",
+     "TSM"
+    ]
+   },
+   {
+    "name": "Clouds and platforms",
+    "note": "Hyperscalers and model owners.",
+    "stocks": [
+     "MSFT",
+     "GOOGL",
+     "AMZN",
+     "META",
+     "ORCL"
+    ]
+   },
+   {
+    "name": "AI software",
+    "note": "Applications and data platforms selling AI.",
+    "stocks": [
+     "PLTR",
+     "SNOW",
+     "CRM",
+     "NOW",
+     "DDOG",
+     "AI",
+     "PATH"
+    ]
+   },
+   {
+    "name": "Neoclouds",
+    "note": "GPU rental specialists.",
+    "stocks": [
+     "CRWV",
+     "NBIS",
+     "IREN"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "cyber",
+  "title": "Cybersecurity",
+  "aliases": [
+   "cybersecurity",
+   "cyber security",
+   "cyber",
+   "security software",
+   "infosec"
+  ],
+  "blurb": "Listed companies that sell security software and services.",
+  "groups": [
+   {
+    "name": "Platforms",
+    "note": "Broad security suites.",
+    "stocks": [
+     "PANW",
+     "CRWD",
+     "FTNT",
+     "CHKP"
+    ]
+   },
+   {
+    "name": "Identity, cloud and network",
+    "note": "Specialists.",
+    "stocks": [
+     "ZS",
+     "NET",
+     "OKTA",
+     "S",
+     "QLYS",
+     "TENB",
+     "RPD"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "nuclear",
+  "title": "Nuclear",
+  "aliases": [
+   "nuclear",
+   "nuclear power",
+   "uranium",
+   "smr",
+   "small modular reactors"
+  ],
+  "blurb": "Uranium, reactor builders and the utilities running nuclear plants.",
+  "groups": [
+   {
+    "name": "Utilities and operators",
+    "note": "Own and run reactors.",
+    "stocks": [
+     "CEG",
+     "VST",
+     "TLN"
+    ]
+   },
+   {
+    "name": "Fuel and uranium",
+    "note": "Mining and enrichment.",
+    "stocks": [
+     "CCJ",
+     "UEC",
+     "LEU",
+     "NXE"
+    ]
+   },
+   {
+    "name": "Reactor developers",
+    "note": "New designs, mostly pre-revenue.",
+    "stocks": [
+     "OKLO",
+     "SMR",
+     "NNE",
+     "BWXT"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "solar",
+  "title": "Clean energy",
+  "aliases": [
+   "solar",
+   "clean energy",
+   "renewables",
+   "renewable energy",
+   "green energy",
+   "wind"
+  ],
+  "blurb": "Solar makers, installers and renewable power producers.",
+  "groups": [
+   {
+    "name": "Solar",
+    "note": "Panels, inverters and trackers.",
+    "stocks": [
+     "FSLR",
+     "ENPH",
+     "SEDG",
+     "NXT",
+     "ARRY",
+     "RUN",
+     "CSIQ",
+     "SHLS"
+    ]
+   },
+   {
+    "name": "Renewable power",
+    "note": "Utilities and developers.",
+    "stocks": [
+     "NEE",
+     "BEP",
+     "AES",
+     "CWEN"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "crypto",
+  "title": "Crypto",
+  "aliases": [
+   "crypto",
+   "cryptocurrency",
+   "bitcoin",
+   "blockchain",
+   "digital assets"
+  ],
+  "blurb": "Exchanges, treasuries and miners tied to crypto prices.",
+  "groups": [
+   {
+    "name": "Exchanges and brokers",
+    "note": "Trading platforms.",
+    "stocks": [
+     "COIN",
+     "HOOD",
+     "GLXY"
+    ]
+   },
+   {
+    "name": "Bitcoin treasuries",
+    "note": "Companies holding bitcoin on the balance sheet.",
+    "stocks": [
+     "MSTR"
+    ]
+   },
+   {
+    "name": "Miners",
+    "note": "Bitcoin mining.",
+    "stocks": [
+     "MARA",
+     "RIOT",
+     "CLSK",
+     "CIFR",
+     "HUT",
+     "BTDR"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "defense",
+  "title": "Defence",
+  "aliases": [
+   "defense",
+   "defence",
+   "defense stocks",
+   "military",
+   "weapons"
+  ],
+  "blurb": "US defence primes and suppliers.",
+  "groups": [
+   {
+    "name": "Primes",
+    "note": "The large contractors.",
+    "stocks": [
+     "LMT",
+     "RTX",
+     "NOC",
+     "GD",
+     "LHX",
+     "BA"
+    ]
+   },
+   {
+    "name": "Suppliers and new entrants",
+    "note": "Electronics, drones and services.",
+    "stocks": [
+     "HII",
+     "LDOS",
+     "BAH",
+     "KTOS",
+     "AVAV",
+     "PLTR"
+    ]
+   }
+  ]
+ }
+]

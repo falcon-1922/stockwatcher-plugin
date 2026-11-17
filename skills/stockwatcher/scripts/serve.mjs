@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+// The background server. Started by stockwatcher.mjs; not meant to be run by hand.
+//   node serve.mjs --port 4317
+// Stops itself after three hours without a request.
+import { fileURLToPath } from 'node:url';
+import { loadThemes } from './lib/indices.mjs';
+import { join } from 'node:path';
+import { createServer } from './lib/server.mjs';
+import { loadIndex } from './lib/stockindex.mjs';
+import { createPriceCache } from './lib/pricecache.mjs';
+import { yahooState } from './lib/prices.mjs';
+import { createSocial } from './lib/social.mjs';
+import { createPortfolios } from './lib/portfolio.mjs';
+import { createMemory } from './lib/memory.mjs';
+import { homeDir, dataDir, DEFAULT_PORT } from './lib/home.mjs';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+const i = process.argv.indexOf('--port');
+const port = +(i > 0 ? process.argv[i + 1] : DEFAULT_PORT);
+const home = homeDir();
+const IDLE_MS = +(process.env.STOCKWATCHER_IDLE_MS || 3 * 3600_000);
+const log = m => console.error(new Date().toISOString().slice(11, 19) + ' ' + m);
+
+// STOCKWATCHER_OFFLINE=1 (tests): every outside request fails at once.
+// STOCKWATCHER_NO_YAHOO=1: use Nasdaq only (US listings).
+const fetchImpl = process.env.STOCKWATCHER_OFFLINE === '1' ? async () => { throw new Error('offline'); } : fetch;
+if (process.env.STOCKWATCHER_NO_YAHOO === '1') yahooState.pausedUntil = Infinity;
+
+const themes = loadThemes(join(root, 'data'));
+const index = loadIndex({ bundledPath: join(root, 'data', 'index.json.gz'), cachePath: join(home, 'index.json.gz'), fetchImpl, log });
+const prices = createPriceCache({ fetchImpl, log, file: join(home, 'prices.json') });
+
+const quit = why => { log(why + ', stopping'); prices.flush(); setTimeout(() => process.exit(0), 50); };
+let idle;
+const touch = () => { clearTimeout(idle); idle = setTimeout(() => quit('idle'), IDLE_MS); };
+process.on('SIGTERM', () => quit('SIGTERM'));
+process.on('SIGINT', () => quit('SIGINT'));
+// What must survive (research memory, the person's portfolios, windows) lives in the data
+// folder, not the cache: the OS may empty caches.
+const data = dataDir();
+const server = createServer({
+  pagePath: join(root, 'assets', 'dashboard.html'), index, themes, prices, log, viewsFile: join(data, 'views.json'),
+  memory: createMemory(join(data, 'memory.json')),
+  social: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createSocial({ fetchImpl, log }),
+  portfolios: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createPortfolios({ fetchImpl, log, file: join(home, 'portfolios.json') }),
+  onActivity: touch,
+  onStop: () => quit('stop requested'),
+});
+server.on('error', e => { log('cannot listen on ' + port + ': ' + e.code); process.exit(3); });
+server.listen(port, '127.0.0.1', () => { touch(); log('listening on http://127.0.0.1:' + port + ' (pid ' + process.pid + ')'); });

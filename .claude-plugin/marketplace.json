@@ -1,0 +1,12 @@
+{
+  "name": "stockwatcher",
+  "owner": { "name": "ktoetotam" },
+  "metadata": { "description": "Stock-market dashboard for Claude Code" },
+  "plugins": [
+    {
+      "name": "stockwatcher",
+      "source": "./",
+      "description": "Live stock-market dashboard and heat map in the browser, steered from the chat."
+    }
+  ]
+}
