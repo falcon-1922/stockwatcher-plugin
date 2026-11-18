@@ -3,6 +3,7 @@
 //   node serve.mjs --port 4317
 // Stops itself after three hours without a request.
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import { loadThemes } from './lib/indices.mjs';
 import { join } from 'node:path';
 import { createServer } from './lib/server.mjs';
@@ -30,7 +31,9 @@ const fetchImpl = process.env.STOCKWATCHER_OFFLINE === '1' ? async () => { throw
 if (process.env.STOCKWATCHER_NO_YAHOO === '1') yahooState.pausedUntil = Infinity;
 
 const themes = loadThemes(join(root, 'data'));
-const index = loadIndex({ bundledPath: join(root, 'data', 'index.json.gz'), cachePath: join(home, 'index.json.gz'), fetchImpl, log });
+// The stock list ships gzipped; registries that take text files only (ClawHub) get it as plain JSON.
+const bundled = ['index.json.gz', 'index.json'].map(f => join(root, 'data', f)).find(p => existsSync(p)) || join(root, 'data', 'index.json.gz');
+const index = loadIndex({ bundledPath: bundled, cachePath: join(home, 'index.json.gz'), fetchImpl, log });
 const prices = createPriceCache({ fetchImpl, log, file: join(home, 'prices.json') });
 // The MOEX Russia index ships with the weights of the day it was built; the exchange's own
 // figures replace them at start and every six hours.

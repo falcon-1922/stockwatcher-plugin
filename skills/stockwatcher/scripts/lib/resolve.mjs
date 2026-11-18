@@ -193,6 +193,22 @@ function findByName(text, index) {
   return null;
 }
 
+// Companies outside the US list that a built-in index names ("lukoil", "siemens"): found by
+// name among its members, so a small model never researches (and guesses) them.
+function findInThemes(text, themes) {
+  if (text.length < 3) return null;
+  const re = wordRe(text);
+  for (const t of themes) {
+    if (!Array.isArray(t.groups)) continue;
+    for (const g of t.groups) for (const s of g.stocks || []) {
+      if (!Array.isArray(s) || !s[2]) continue;
+      const n = normalise(s[2]);
+      if (n === text || n.startsWith(text + ' ') || re.test(n)) return { y: s[0], t: s[1], n: s[2], x: s[3], c: s[4] };
+    }
+  }
+  return null;
+}
+
 // Fuzzy fallback: every meaningful word of the text appears in an industry label.
 function industriesLike(text, index) {
   const words = text.split(' ').filter(w => w.length >= 4).map(w => w.replace(/(ies|es|s)$/, ''));
@@ -310,6 +326,8 @@ function resolveOne(query, index, themes) {
     // 5. A company name ("apple", "eli lilly").
     const byName = findByName(core, index);
     if (byName) { addPick(byName); continue; }
+    const listed = findInThemes(core, themes);
+    if (listed) { addPick(null, listed); continue; }
     // 6. Words that appear in an industry label ("railroads", "semiconductor equipment").
     const labels = industriesLike(core, index);
     if (labels.length) {

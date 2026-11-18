@@ -23,7 +23,7 @@ export function dataDir(env = process.env, platform = process.platform) {
 export const DEFAULT_PORT = 4317;
 
 // One number for the command, the server and the page. Keep .claude-plugin/plugin.json in step.
-export const VERSION = '3.8.0';
+export const VERSION = '3.8.1';
 
 // How to open a link in the default browser. Windows: not "cmd /c start <url>", which cuts
 // the link at every "&" (…?q=…&w=w2); the URL handler takes it whole.
