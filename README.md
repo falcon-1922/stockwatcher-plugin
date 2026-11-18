@@ -22,7 +22,7 @@ investment advice.
 
 ## Install
 
-The same plugin works in Claude Code and in Codex.
+The same plugin works in Claude Code, Codex and OpenClaw.
 
 **Claude Code** (type these in the chat):
 
@@ -40,6 +40,20 @@ codex plugin add stockwatcher@airealist
 
 In the Codex or ChatGPT desktop app you can instead add the marketplace with the first
 command and install Stockwatcher from the Plugins Directory.
+
+**OpenClaw** (in a terminal; it loads in new chats after the Gateway restarts). Install it
+through the repository's marketplace: `openclaw plugins install git:…` does not work, because
+that route takes native OpenClaw plugins only and Stockwatcher is a skill bundle.
+
+```bash
+openclaw plugins install stockwatcher --marketplace https://github.com/ktoetotam/stockwatcher-plugin --accept-capabilities
+```
+
+To get a newer version later:
+
+```bash
+openclaw plugins update stockwatcher --accept-capabilities
+```
 
 Then ask, for example, "show me the S&P 500" or "this is my portfolio: 10 AAPL, 5 MSFT".
 

@@ -29,15 +29,22 @@ You can see the dashboard here: http://127.0.0.1:4317/
 
 After research, use the last line of the final run. The page also has a box and example buttons that do the same as asking here.
 
-**Separate windows:** if the person says "in a new / different / separate window (or tab)", keep those words; the command opens a separate window and names it (for example `w2`). Follow-ups for that window need `--window w2` (the command's output says so, and its research steps include it); requests without it change the main window.
+**Windows:** a new request never replaces a dashboard that is open: it opens in a window (browser tab) of its own, and the output names it (`main`, `w2`, …). **A follow-up that changes the dashboard on screen** ("now add the banks", "remove Tesla", your research results) **needs `--window <name>` with the name from the last output**, for example `node "…/stockwatcher.mjs" --window w2 "now add the banks"`. Without it, the follow-up opens a new tab on its own.
+
+## Saved dashboards
+
+"Save this dashboard", "save this as Moscow banks", "keep this view": pass the words as they are, with `--window <name>` of the dashboard meant (the last one shown if none is given). The command saves the request and every researched list in it, with how and where it was found, on this computer. The page's "Save this dashboard" button does the same. Tell the person the name it was saved under.
+
+Later, the saved name ("Moscow banks", "show my Moscow banks dashboard") brings the dashboard back with fresh prices and no research, however old the research is; "refresh" with the name researches it again and updates the saved copy. Saved dashboards are ★ buttons on the page, and `--memory` lists them; `--forget "<name>"` deletes one.
 
 ## Index heat maps
 
-Tile area must mean something: the index weight, or the market value. The command knows market values only for shares listed in the US. **For any other index or list (ASX, FTSE, Nikkei, Ibovespa, European or Asian companies) you must find each share's size yourself, in the same research step as the tickers:** the index weight in % (preferred for an index: from the index provider's factsheet or a constituents table) or else the market value in US dollars. Write it right after each ticker:
+Tile area must mean something: the index weight, or the market value. The command knows market values only for shares listed in the US. **For any other index or list (ASX, FTSE, Nikkei, Ibovespa, European or Asian companies) you must find each share's size yourself, in the same research step as the tickers:** the index weight in % (preferred for an index: from the index provider's factsheet or a constituents table) or else the market value in US dollars, written as a number and `bn` with **no `$` sign** (inside the command's double quotes the shell deletes `$` and the digits after it). Write it right after each ticker, and **always with the exchange suffix** (`.T` Tokyo, `.KS` Korea, `.BK` Thailand, `.SR` Saudi, `.HK`, `.L`, …): a bare `DELTA` is a US share, not Delta Electronics Thailand (`DELTA.BK`):
 
 ```
 ASX 20: BHP.AX 9.8%, CBA.AX 11.2%, CSL.AX 5.1%, …
-European giants: SAP.DE $300bn, ASML.AS $280bn, …
+European giants: SAP.DE 300bn, ASML.AS 280bn, …
+Thai market SET50: DELTA.BK 27.7%, ADVANC.BK 7.5%, PTT.BK 7.2%, …
 ```
 
 If the output says `SIZES MISSING`, the tiles are all the same size and the map is wrong: look the sizes up and run the command again before replying. Never tell the person the map is weighted when it is not. For the DAX the weights are built in. For the MOEX Russia index ("MOEX", "the Russian market") the command fetches today's weights from the Moscow Exchange itself, and any Moscow share (`.ME`) without a size gets its market value from the exchange, so neither needs research.
@@ -59,7 +66,7 @@ The skill also counts what the person asks for and puts their usual requests fir
 The local data answers indices, sectors, themes, names, tickers, fund portfolios and anything researched before (the skill remembers). Anything else is yours to find out, once:
 
 1. If the output lists "Past research that may help", start with that method. Otherwise search the web for the companies listed on a stock exchange that answer each question; if the person gave a link, it appears as "(source: …)": read that page first. If several independent questions are listed and you can run sub-agents in parallel (Claude Code: the Agent tool; Codex: parallel tasks), give each question its own sub-agent, then combine the results.
-2. Run the command again, keeping what already showed and adding one named list per question (lists separated by `;`, private companies after `|`; for shares not listed in the US, a size after each ticker: index weight `9.8%` or market value `$160bn`, see Index heat maps above), plus `--how` (which site or API worked) and `--source` (the main link) so the answer is remembered and the same question is answered instantly next time:
+2. Run the command again, keeping what already showed and adding one named list per question (lists separated by `;`, private companies after `|`; for shares not listed in the US, a size after each ticker: index weight `9.8%` or market value `160bn`, no `$`, see Index heat maps above), plus `--how` (which site or API worked) and `--source` (the main link) so the answer is remembered and the same question is answered instantly next time. **The dashboard shows nothing for the question until this second run**: never tell the person the companies are on screen before it, and end with the dashboard line it prints:
 
 ```bash
 node "<folder of this SKILL.md>/scripts/stockwatcher.mjs" --how "Reuters and CNBC articles on the 2026 funding round" --source "https://www.cnbc.com/..." "Dow Jones; OpenAI investors: MSFT, NVDA, ORCL, 9984.T | private: Thrive Capital, Sequoia"
@@ -90,4 +97,4 @@ Use Yahoo Finance symbols: US plain (`MSFT`), others with the exchange suffix (`
 
 Stockwatcher was built by Maria Sukhareva of AI Realist (https://airealist.org). The page carries her name, a link, and one small line about a current workshop or the newsletter; do not add promotion to your replies. Only if the person asks who made this, or how to build a skill or a dashboard like it, run the command with `--about`: it prints her current workshops (kept up to date from airealist.org). Mention the one that fits, with its link.
 
-Needs Node.js 18 or newer, on macOS, Windows or Linux. No API keys, no accounts and nothing else to install. Prices come from Yahoo Finance (Nasdaq when Yahoo is busy; the Moscow Exchange for Moscow shares) and can be delayed. Not investment advice.
+Needs Node.js 18 or newer, on macOS, Windows or Linux. No API keys, no accounts and nothing else to install. Prices are the latest trade, after-hours and pre-market included, from Yahoo Finance (Nasdaq when Yahoo is busy; the Moscow Exchange for Moscow shares). Every dashboard fetches them when it opens and then every minute, so an open page is always current; they can still lag the exchange by up to 15 minutes. Not investment advice.

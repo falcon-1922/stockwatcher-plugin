@@ -46,9 +46,11 @@ export function createPriceCache({ fetchImpl = fetch, log = () => {}, freshMs = 
   const isFresh = (e, now) => e && now - e.at < (e.quiet ? quietMs : freshMs);
 
   // Starts fetching whatever is missing or old; returns a promise for all of it.
-  function refresh(symbols) {
+  // maxAgeMs: a dashboard just opened wants prices no older than this, even for a share that
+  // has not been moving.
+  function refresh(symbols, maxAgeMs = Infinity) {
     const now = Date.now();
-    const need = symbols.filter(s => !inflight.has(s) && !isFresh(entries.get(s), now));
+    const need = symbols.filter(s => { const e = entries.get(s); return !inflight.has(s) && (!isFresh(e, now) || now - e.at > maxAgeMs); });
     if (need.length) {
       const p = fetchPricesImpl(need, {
         fetchImpl, log,
@@ -67,8 +69,8 @@ export function createPriceCache({ fetchImpl = fetch, log = () => {}, freshMs = 
     return Promise.all([...new Set(symbols.map(s => inflight.get(s)).filter(Boolean))]);
   }
 
-  async function get(symbols, budgetMs = 1200) {
-    const done = refresh(symbols);
+  async function get(symbols, budgetMs = 1200, { maxAgeMs = Infinity } = {}) {
+    const done = refresh(symbols, maxAgeMs);
     await Promise.race([done, sleep(budgetMs)]);
     const now = Date.now();
     const quotes = {}, history = {}, source = {}, stale = [], pending = [], missing = [];

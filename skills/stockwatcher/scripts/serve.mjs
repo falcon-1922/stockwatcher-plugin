@@ -16,6 +16,7 @@ import { createMemory } from './lib/memory.mjs';
 import { createPromo } from './lib/promo.mjs';
 import { createActive } from './lib/active.mjs';
 import { createMoex } from './lib/moex.mjs';
+import { createNames } from './lib/names.mjs';
 import { homeDir, dataDir, DEFAULT_PORT } from './lib/home.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -60,6 +61,7 @@ const server = createServer({
   portfolios: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createPortfolios({ fetchImpl, log, file: join(home, 'portfolios.json') }),
   active: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createActive({ fetchImpl, log }),
   moex, themesAt: () => (moex ? moex.state.indexAt : 0),
+  names: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createNames({ fetchImpl, log, file: join(home, 'names.json') }),
   onActivity: touch,
   onStop: () => quit('stop requested'),
 });

@@ -4,6 +4,9 @@
 //   related one gets the old method as a hint.
 // - portfolios: the person's own portfolios ("this is my portfolio: 10 AAPL, 5 MSFT").
 // - asked: how often each request was made, so the page can offer the person's usual ones.
+// - dashboards: views the person saved by name ("save this dashboard as Moscow banks"): the
+//   request and every researched answer in it, with how and where it was found. Asking for the
+//   name brings the dashboard back with no research, however old the answers are.
 // Everything stays on this computer.
 import { readFileSync } from 'node:fs';
 import { normalise } from './resolve.mjs';
@@ -49,7 +52,7 @@ export function similarity(a, b) {
 }
 
 export function createMemory(file, now = () => Date.now(), log = () => {}) {
-  let data = { research: {}, portfolios: {}, asked: {} };
+  let data = { research: {}, portfolios: {}, asked: {}, dashboards: {} };
   if (file) { try { data = { ...data, ...JSON.parse(readFileSync(file, 'utf8')) }; } catch { /* first run */ } }
   const save = () => { if (file) saveFile(file, JSON.stringify(data, null, 1), log); };
   const key = q => words(q).join(' ');
@@ -73,14 +76,43 @@ export function createMemory(file, now = () => Date.now(), log = () => {}) {
         .filter(x => x.s >= 0.3).sort((a, b) => b.s - a.s).slice(0, limit).map(x => ({ ...x.e, days: age(x.e) }));
     },
     remember(question, { answer, how = '', sources = [] }) {
-      data.research[key(question)] = { question, answer, how, sources, at: now() };
+      const entry = { question, answer, how, sources, at: now() };
+      data.research[key(question)] = entry;
+      // Research done again ("refresh") updates the saved dashboards that hold this answer.
+      for (const d of Object.values(data.dashboards)) {
+        d.answers = (d.answers || []).map(a => (similarity(a.question, question) >= 0.75 ? { ...entry } : a));
+      }
       save();
     },
     forget(question) {
       const k = Object.keys(data.research).find(k => similarity(question, data.research[k].question) >= 0.75);
-      if (!k) return false;
-      delete data.research[k]; save(); return true;
+      if (k) { delete data.research[k]; save(); return 'research'; }
+      const d = this.dashboard(question);
+      if (d) { delete data.dashboards[key(d.name)]; save(); return 'dashboard'; }
+      return false;
     },
+    // A saved dashboard: the request, and the researched answers it used, kept with no expiry.
+    saveDashboard(name, { q, answers = [] }) {
+      const text = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+      if (!text || !key(text)) return null;
+      const old = data.dashboards[key(text)];
+      data.dashboards[key(text)] = { name: text, q, answers, at: now(), ...(old ? { created: old.created || old.at } : {}) };
+      save();
+      return data.dashboards[key(text)];
+    },
+    // The saved dashboard a request names ("Moscow banks", "show my Moscow banks dashboard").
+    dashboard(text) {
+      const k = key(String(text || '').replace(/\b(?:my|our|saved|dashboards?|views?|open|pull up|bring up|load|again)\b/gi, ' '));
+      if (!k) return null;
+      if (data.dashboards[k]) return { ...data.dashboards[k], days: age(data.dashboards[k]) };
+      let best = null, score = 0;
+      for (const d of Object.values(data.dashboards)) {
+        const s = similarity(k, d.name);
+        if (s > score) { score = s; best = d; }
+      }
+      return best && score >= 0.75 ? { ...best, days: age(best) } : null;
+    },
+    dashboards() { return Object.values(data.dashboards).sort((a, b) => b.at - a.at); },
     savePortfolio(name, items) { data.portfolios[name] = { items, at: now() }; save(); },
     removePortfolio(name) { delete data.portfolios[name]; save(); },
     portfolio(name) { return data.portfolios[name] || null; },

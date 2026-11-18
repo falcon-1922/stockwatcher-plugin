@@ -15,7 +15,8 @@ import { openSync, mkdirSync } from 'node:fs';
 import { createServer as netServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { homeDir, DEFAULT_PORT, VERSION, browserCommand } from './lib/home.mjs';
+import { homeDir, DEFAULT_PORT, VERSION, browserCommand, isNewer } from './lib/home.mjs';
+import { withAdded } from './lib/server.mjs';
 
 const args = process.argv.slice(2);
 const flag = n => { const i = args.indexOf(n); if (i < 0) return false; args.splice(i, 1); return true; };
@@ -52,19 +53,24 @@ function startServer(port) {
   }).unref();
 }
 
-// Finds our server on one of ten ports, or starts it on the first free one.
+const newer = isNewer;
+
+// Finds our server on one of ten ports, or starts it on the first free one. Several copies of
+// the skill can be installed (Claude Code, Codex, OpenClaw, an older version): a running server
+// of the same or a newer version is used as it is, and only an older one is replaced. Replacing
+// any other version, as before, made two copies stop each other's server in turn.
 async function ensureServer() {
   const found = [];
   for (let port = firstPort; port < firstPort + 10; port++) {
     const h = await health(port);
-    if (h && h.version === VERSION) return port;
+    if (h && (h.version === VERSION || newer(h.version, VERSION))) return port;
     if (h) found.push(port);
   }
   const blocked = await bindBlocked();
   if (blocked) { if (found.length) return found[0]; sandboxed(blocked); }   // another version: still shows the request
   for (let port = firstPort; port < firstPort + 10; port++) {
     const h = await health(port);
-    if (h && h.version === VERSION) return port;
+    if (h && (h.version === VERSION || newer(h.version, VERSION))) return port;
     if (h) { await getJson('http://127.0.0.1:' + port + '/api/stop').catch(() => {}); await wait(150); } // older copy: replace it
     if (!(await portFree(port))) continue;
     startServer(port);
@@ -125,6 +131,9 @@ if (showMemory) {
   const research = Object.values(m.research), mine = Object.entries(m.portfolios);
   console.log(research.length ? 'Remembered research (' + research.length + '):' : 'No research remembered yet.');
   for (const e of research) console.log('  - "' + e.question + '" → ' + e.answer + '\n    found ' + new Date(e.at).toISOString().slice(0, 10) + (e.how ? ' via ' + e.how : '') + (e.sources.length ? '; sources: ' + e.sources.join(', ') : ''));
+  const boards = Object.values(m.dashboards || {});
+  console.log(boards.length ? 'Saved dashboards (' + boards.length + '):' : 'No dashboard saved yet.');
+  for (const d of boards) console.log('  - "' + d.name + '" → ' + d.q + (d.answers && d.answers.length ? ' (with ' + d.answers.length + ' researched list' + (d.answers.length === 1 ? '' : 's') + ')' : '') + ', saved ' + new Date(d.at).toISOString().slice(0, 10));
   console.log(mine.length ? 'Saved portfolios: ' + mine.map(([n, p]) => (n === 'default' ? 'my portfolio' : n) + ' (' + p.items.length + ' holdings)').join(', ') : 'No portfolio saved yet.');
   if (m.usual && m.usual.length) console.log('Asked for most often: ' + m.usual.map(u => '"' + u.q + '" (' + u.n + '×)').join(', '));
   console.log('All of this is kept on this computer only.');
@@ -139,11 +148,39 @@ if (about) {
 }
 if (forget) {
   const r = await getJson(base + '/api/memory/forget?q=' + encodeURIComponent(forget), 5000);
-  console.log(r.forgotten ? 'Forgotten: "' + forget + '". It will be researched again next time.' : 'Nothing remembered for "' + forget + '".');
+  console.log(r.forgotten === 'dashboard' ? 'Deleted the saved dashboard "' + forget + '".' : r.forgotten ? 'Forgotten: "' + forget + '". It will be researched again next time.' : 'Nothing remembered for "' + forget + '".');
   process.exit(0);
 }
 
-if (newWindow && !list) windowName = (await getJson(base + '/api/window/new')).w;
+// "save this dashboard", "save this dashboard as Moscow banks": the window's view is kept by
+// name, with the research it used.
+const SAVE = /^\s*(?:please\s+)?(?:save|keep|bookmark)\s+(?:this|the|that|my|current)?\s*(?:dashboard|view|page|heat\s?map|screen)\b(?:\s+(?:as|called|named|under)\s+["“']?(.+?)["”']?)?\s*[.!]?\s*$/i;
+const saving = !list && SAVE.exec(query);
+if (saving) {
+  const valid = windowName && /^[a-z0-9-]{1,20}$/i.test(windowName);
+  const r = await getJson(base + '/api/save?name=' + encodeURIComponent(saving[1] || '') + (valid ? '&w=' + windowName : ''), 15000);
+  const shown = r.window && r.window !== 'main' ? '/?w=' + r.window : '/';
+  if (r.error) console.log('NOT SAVED: ' + r.error);
+  else {
+    console.log('Saved the dashboard in window "' + r.window + '" as "' + r.saved.name + '" (on this computer). Request: ' + r.saved.q);
+    console.log(r.saved.answers ? 'It keeps ' + r.saved.answers + ' researched list' + (r.saved.answers === 1 ? '' : 's') + ' with how they were found' + (r.saved.how.length ? ' (' + r.saved.how.join('; ') + ')' : '') + ', so it opens again with no research.' : 'Nothing in it needed research; it opens again as it is.');
+    console.log('To bring it back, the person asks for "' + r.saved.name + '" (run this command with those words). It is also a ★ button on the page. Saved dashboards: ' + r.list.map(n => '"' + n + '"').join(', ') + '.');
+    console.log('Tell the person it was saved and under which name.');
+  }
+  console.log(['', 'End your reply to the person with this line, exactly as it is:', 'You can see the dashboard here: ' + base + shown].join('\n'));
+  process.exit(0);
+}
+
+// A new request does not replace a dashboard someone is looking at: it opens in a window of
+// its own. Follow-ups that should change a dashboard name its window (--window w2).
+// "Now add the banks" without a window name still means the dashboard shown last.
+let ownWindow = false;
+if (!list && !windowName && !newWindow && query && withAdded(query, 'x') !== query) windowName = (await getJson(base + '/api/last').catch(() => ({}))).w;
+if (!list && !windowName && !newWindow && query) {
+  const main = await getJson(base + '/api/current?w=main').catch(() => null);
+  if (main && main.q && main.viewers > 0 && main.q.trim().toLowerCase() !== query.toLowerCase()) ownWindow = true;
+}
+if ((newWindow || ownWindow) && !list) windowName = (await getJson(base + '/api/window/new')).w;
 const w = windowName && /^[a-z0-9-]{1,20}$/i.test(windowName) ? windowName : 'main';
 const extra = (how ? '&how=' + encodeURIComponent(how) : '') + sources.map(s => '&src=' + encodeURIComponent(s)).join('');
 const info = await getJson(base + (list ? '/api/vocab' : '/api/show?q=' + encodeURIComponent(query) + '&w=' + w + extra), 15000);
@@ -158,12 +195,15 @@ if (list) {
 }
 
 // A page that is already open switches to the new view by itself; open one only if none is.
-const params = [query ? 'q=' + encodeURIComponent(query) : '', w !== 'main' ? 'w=' + w : ''].filter(Boolean).join('&');
+const shownQ = info.q || query;   // "now add the banks" comes back as the whole view
+const params = [shownQ ? 'q=' + encodeURIComponent(shownQ) : '', w !== 'main' ? 'w=' + w : ''].filter(Boolean).join('&');
 const url = base + '/' + (params ? '?' + params : '');
 const opened = !noOpen && !info.viewers && openBrowser(url);
 const where = w === 'main' ? '' : ' (window "' + w + '")';
 const lines = [info.viewers ? 'Updated the Stockwatcher page that is already open' + where + ' (' + url + ').' : (opened ? 'Opened Stockwatcher' + where + ' in the browser: ' : 'Stockwatcher' + where + ' is ready at ') + url];
-if (w !== 'main') lines.push('This is a separate window. To change it later, add --window ' + w + ' to the command; requests without it change the main window.');
+if (query) lines.push((ownWindow ? 'Opened in a new window ("' + w + '"), so the dashboard already open stays as it was. ' : '')
+  + 'This dashboard is window "' + w + '". For a follow-up that changes it (adding to it, research results), add --window ' + w + ' to the command; without it, a new request opens in its own window.'
+  + ' To keep it for later, the person can say "save this dashboard as <name>" (add --window ' + w + ') or press Save on the page.');
 if (!query) {
   lines.push('The person tells you in the chat what to show; run this command again with their words.');
   if (info.usual && info.usual.length) lines.push('They often ask for: ' + info.usual.map(u => '"' + u + '"').join(', ') + '.');
@@ -171,7 +211,7 @@ if (!query) {
 else if (info.total) {
   lines.push('Showing ' + info.total + ' shares:');
   for (const s of info.sections) {
-    lines.push('  - ' + s.title + ' (' + s.count + '): ' + s.groups.slice(0, 6).join(', ') + (s.groups.length > 6 ? ', …' : ''));
+    lines.push('  - ' + s.title + ' (' + s.count + '): ' + (s.shares ? s.shares.join(', ') : s.groups.slice(0, 6).join(', ') + (s.groups.length > 6 ? ', …' : '')));
     if (s.about) lines.push('    ' + s.about);                     // a fund's filing: when, how big, and if it is old
   }
 }
@@ -181,7 +221,7 @@ if (info.learned && info.learned.length) lines.push('Remembered for next time (n
 // What the local data cannot answer goes back to the agent in the chat, as steps.
 const todo = [...info.research, ...info.unmatched];
 if (todo.length) {
-  const cli = self + (w !== 'main' ? ' --window ' + w : '');
+  const cli = self + ' --window ' + w;
   lines.push('', 'NEEDS RESEARCH (the local data cannot answer): ' + todo.map(u => '"' + u + '"').join(', '));
   // Self-learning: how related questions were answered before, so the method is not rediscovered.
   if (info.hints && info.hints.length) {
@@ -191,9 +231,10 @@ if (todo.length) {
   if (todo.length > 1) lines.push('These ' + todo.length + ' questions are independent. If you can run sub-agents in parallel (Claude Code: the Agent tool; Codex: parallel tasks), give each one its own sub-agent with web search, then combine the answers.');
   lines.push('1. Search the web for the companies listed on a stock exchange that answer ' + (todo.length > 1 ? 'each question' : 'it') + (todo.some(t => /\(source: /.test(t)) ? ' (start with the source link given)' : '') + '.');
   lines.push('2. Run the command again with one named list per question: "<short title>: <tickers>", lists separated by ";". Use Yahoo symbols (non-US with the exchange suffix, e.g. 9984.T, SAP.DE); put important private companies after "|".');
-  lines.push('   For shares not listed in the US, write each one\'s size after the ticker, or every tile is drawn the same size: its index weight ("BHP.AX 9.8%") or market value in US dollars ("SAP.DE $300bn").');
+  lines.push('   For shares not listed in the US, write each one\'s size after the ticker, or every tile is drawn the same size: its index weight ("BHP.AX 9.8%") or market value in US dollars ("SAP.DE 300bn", no $: the shell deletes it). Always with the exchange suffix (.T, .KS, .BK, .SR, .HK, .L …).');
   lines.push('   Add --how "<which site or API worked>" and --source "<main link>" so the answer is remembered and never researched again:');
   lines.push('   ' + cli + ' --how "SEC 13F filings via EDGAR full-text search" --source "https://www.sec.gov/..." "' + (info.total ? '<what already showed, e.g. ' + info.sections[0].title + '>; ' : '') + 'OpenAI investors: MSFT, NVDA, ORCL, 9984.T | private: Thrive Capital, Sequoia"');
+  lines.push('3. Until you run that command, the dashboard shows nothing for ' + (todo.length > 1 ? 'these questions' : 'this question') + ': do not tell the person the companies are on screen before it. Reply after it, ending with the dashboard line it prints.');
   if (info.unmatched.length) lines.push('If a word is not about companies at all, tell the person instead. ' + hint(info.vocab));
 }
 lines.push('', 'To change the view, the person says so in the chat (run this command again with their words) or types it in the page’s box.');

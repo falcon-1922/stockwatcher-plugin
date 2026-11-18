@@ -40,6 +40,16 @@ const SESSION_NOTE = {
 };
 const SESSION_WORD = { after: 'after hours', pre: 'pre-market', closed: 'outside regular hours' };
 
+// "now add the banks", "also show tesla", "plus gold miners too": added to what the window
+// already shows instead of replacing it.
+const ADD = /^\s*(?:(?:now|please|and|ok|okay|then)[,\s]+)*(?:add|also\s+(?:show|add|include)|also|plus|include)\s+(.+?)(?:[,\s]+(?:too|as well|also))?\s*[.!]?\s*$/i;
+export function withAdded(q, previous) {
+  const m = ADD.exec(String(q || ''));
+  if (!m || !previous || parseMine(q)) return q;   // "add 5 TSLA to my portfolio" changes the portfolio
+  const extra = m[1].replace(/\s+to\s+(?:it|this|the\s+(?:dashboard|view|page|list))$/i, '').trim();
+  return extra ? previous + '; ' + extra : q;
+}
+
 // A researched list whose shares have no size here (not listed in the US) would be drawn with
 // equal tiles, which misleads. The chat is told, in the list's own format, what to add.
 export function missingSizes(sections) {
@@ -54,7 +64,7 @@ export function missingSizes(sections) {
     out.push('SIZES MISSING: ' + bare.length + ' of ' + all.length + ' shares in "' + sec.title + '" have no ' + (byWeight ? 'index weight' : 'market value')
       + ' (' + bare.slice(0, 8).map(st => st.y).join(', ') + (bare.length > 8 ? ', …' : '') + '), so their tiles are all drawn the same size and the map is misleading.'
       + ' Before replying, look up each share\'s index weight (for an index: from the index provider or a constituents table) or else its market value in US dollars,'
-      + ' and run the command again with the size after every ticker, for example "' + sec.title + ': ' + a + ' 9.8%, ' + b + ' 4.2%, …" or "' + sec.title + ': ' + a + ' $160bn, …".'
+      + ' and run the command again with the size after every ticker, for example "' + sec.title + ': ' + a + ' 9.8%, ' + b + ' 4.2%, …" or "' + sec.title + ': ' + a + ' 160bn, …" (no $ sign: inside double quotes the shell deletes it).'
       + ' No thousands separators. Keep the same --how and --source.');
   }
   return out;
@@ -74,7 +84,11 @@ export function missingPrices(sections, p) {
 
 export function summarise(sections, unmatched, research, notes = []) {
   return {
-    sections: sections.map(s => ({ id: s.id, title: s.title, count: s.groups.reduce((a, g) => a + g.stocks.length, 0), groups: s.groups.map(g => g.name), ...(s.sizeBy === 'held' ? { about: s.blurb } : {}) })),
+    sections: sections.map(s => {
+      const all = s.groups.flatMap(g => g.stocks);
+      // A short list is named share by share, so the reply can say "Toyota, Sony and SoftBank".
+      return { id: s.id, title: s.title, count: all.length, groups: s.groups.map(g => g.name), ...(all.length <= 10 ? { shares: all.map(st => (st.n && st.n !== st.y ? st.n + ' (' + st.y + ')' : st.y)) } : {}), ...(s.sizeBy === 'held' ? { about: s.blurb } : {}) };
+    }),
     total: symbolsOf(sections).length,
     unmatched, research, notes,
   };
@@ -89,7 +103,8 @@ export function summarise(sections, unmatched, research, notes = []) {
 // `active` (optional): most active shares and extended-hours prices, see active.mjs.
 // `moex` (optional): the Moscow Exchange's index weights and market values, see moex.mjs.
 // `themesAt` (optional): changes when a theme was updated in place (the index's daily weights).
-export function createServer({ pagePath, index, themes, prices = createPriceCache(), social = null, portfolios = null, memory = null, promo = null, active = null, moex = null, themesAt = () => 0, viewsFile = null, budgetMs = 1200, log = () => {}, onStop = () => {}, onActivity = () => {} }) {
+// `names` (optional): company names for bare tickers, see names.mjs.
+export function createServer({ pagePath, index, themes, prices = createPriceCache(), social = null, portfolios = null, memory = null, promo = null, active = null, moex = null, names = null, themesAt = () => 0, viewsFile = null, budgetMs = 1200, log = () => {}, onStop = () => {}, onActivity = () => {} }) {
   const resolved = new Map(); // query → { at, result }   (the index changes once a day at most)
   const vocab = vocabulary(themes);
   const views = new Map([['main', { q: '', at: 0 }]]);   // window name → its current view
@@ -127,16 +142,26 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
 
   // Research answered before comes from memory ("refresh" in the request researches again).
   const REFRESH = /\b(refresh|research again|re-?research|look (?:it )?up again|update the list)\b/i;
-  function fromMemory(questions, refresh) {
-    const left = [], sections = [], notes = [];
+  // A saved dashboard's own answers come first and never expire.
+  function fromMemory(questions, refresh, savedAnswers = []) {
+    const left = [], sections = [], notes = [], used = [];
     for (const qn of questions) {
-      const hit = memory && !refresh ? memory.lookup(qn) : null;
+      const own = refresh ? null : savedAnswers.find(a => similarity(a.question, qn) >= 0.75);
+      const hit = own ? { ...own, days: Math.floor((Date.now() - own.at) / 86_400_000) } : (memory && !refresh ? memory.lookup(qn) : null);
       if (!hit) { left.push(qn); continue; }
+      used.push({ question: hit.question, answer: hit.answer, how: hit.how || '', sources: hit.sources || [], at: hit.at });
       const r = local(hit.answer);
       for (const s of r.sections) sections.push({ ...s, footnote: [s.footnote, 'From memory: researched ' + (hit.days ? hit.days + ' days ago' : 'today') + (hit.how ? ' (' + hit.how + ')' : '') + (hit.sources.length ? '; sources: ' + hit.sources.join(', ') : '') + '. Say "refresh" to research again.'].filter(Boolean).join(' ') });
       notes.push('Answered from memory: "' + qn + '" (researched ' + (hit.days ? hit.days + ' days ago' : 'today') + (hit.how ? ' via ' + hit.how : '') + ').');
     }
-    return { left, sections, notes };
+    return { left, sections, notes, used };
+  }
+
+  // "Moscow banks" (a saved dashboard's name, also "show my Moscow banks dashboard"): the saved
+  // request, with the research it was saved with.
+  function savedDashboard(text) {
+    if (!memory || !text || isTitledList(text) || parseMine(text)) return null;
+    return memory.dashboard(text);
   }
 
   // "this is my portfolio: 10 AAPL, 5 MSFT", "add 5 TSLA to my portfolio", "I sold 2 AAPL"
@@ -167,9 +192,15 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
   }
 
   async function lookupText(q, ctx = {}) {
-    let rest = q, notes = [], sections = [], extraUnmatched = [];
+    let rest = q, notes = [], sections = [], extraUnmatched = [], savedAnswers = [];
     const refresh = REFRESH.test(rest);
     if (refresh) rest = rest.replace(REFRESH, ' ').replace(/\s+/g, ' ').trim();
+    const saved = savedDashboard(rest);
+    if (saved) {
+      rest = saved.q; savedAnswers = saved.answers || [];
+      notes.push('Saved dashboard "' + saved.name + '" (saved ' + (saved.days ? saved.days + ' days ago' : 'today') + ')'
+        + (savedAnswers.length ? '; its researched lists are the saved ones' + (refresh ? ', being researched again now' : ' (say "refresh" to research them again)') : '') + '.');
+    }
     const mine = myPortfolio(rest, ctx.save);
     if (mine) {
       if (mine.section) sections.push(mine.section);
@@ -215,14 +246,34 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
     const { localText, questions } = rest ? splitResearch(rest, local) : { localText: '', questions: [] };
     const found = localText ? local(localText) : { sections: [], unmatched: [] };
     // Questions (and unknown words) answered before are taken from memory instead of research.
-    const mem = fromMemory([...questions, ...found.unmatched, ...extraUnmatched], refresh);
+    const mem = fromMemory([...questions, ...found.unmatched, ...extraUnmatched], refresh, savedAnswers);
     const stillQuestions = mem.left.filter(x => questions.includes(x));
     const ids = new Set();
     const all = [...sections, ...found.sections, ...mem.sections].filter(s => !ids.has(s.id) && ids.add(s.id));   // a list and its remembered copy are one
     // Moscow shares that came without a size get their market value from the exchange.
     if (moex) await moex.enrich(all).catch(e => log('moex sizes failed: ' + e.message));
-    return { sections: all, unmatched: mem.left.filter(x => !questions.includes(x)), research: stillQuestions, notes: [...notes, ...mem.notes], session };
+    return { sections: all, unmatched: mem.left.filter(x => !questions.includes(x)), research: stillQuestions, notes: [...notes, ...mem.notes], session, remembered: mem.used, saved: saved ? saved.name : null };
   }
+
+  // Saves a window's view under a name, with the research answers it uses, so asking for the
+  // name later brings it back as it was, with no research.
+  async function saveView(w, name, q) {
+    if (!memory) return { error: 'Saving needs the memory file, which is not available here.' };
+    const view = q || (views.get(w) || {}).q || '';
+    if (!view) return { error: 'There is no dashboard on screen to save yet.' };
+    const r = await lookup(view);
+    if (r.research.length || r.unmatched.length) return { error: 'Part of this dashboard is still waiting for research (' + [...r.research, ...r.unmatched].map(x => '"' + x + '"').join(', ') + '). Save it once the research is in.' };
+    // A saved dashboard opened again is saved under its own request, not its name.
+    const own = savedDashboard(view);
+    const request = own ? own.q : view;
+    const title = String(name || '').trim() || (own && own.name) || r.sections.map(s => s.title).join(' · ').slice(0, 80);
+    const d = memory.saveDashboard(title, { q: request, answers: r.remembered });
+    if (!d) return { error: 'That name has no letters or numbers in it; choose another.' };
+    return { saved: { name: d.name, q: d.q, answers: d.answers.length, how: d.answers.map(a => a.how).filter(Boolean) }, list: memory.dashboards().map(x => x.name) };
+  }
+  const savedNames = () => (memory ? memory.dashboards().map(d => d.name) : []);
+  // The window shown last: what "save this dashboard" means when no window is named.
+  const lastWindow = () => [...views.entries()].filter(([, v]) => v.q).sort((a, b) => b[1].at - a[1].at).map(([k]) => k)[0] || 'main';
 
   // Self-learning: the questions a window is waiting on, and the named lists that answer them
   // when the agent comes back with its research. Each question is saved with how it was found.
@@ -249,14 +300,21 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
     return learned;
   }
 
-  async function dashboard(q) {
+  // fresh: a page that has just opened (or come back into view) gets prices fetched now, not
+  // what was cached minutes ago.
+  async function dashboard(q, { fresh = false } = {}) {
     const { sections, unmatched, research, notes, session } = await lookup(q);
     const symbols = symbolsOf(sections);
     const outside = session && session !== 'regular' && active;
+    // Shares that came as bare tickers ("9983.T") get their company names, looked up while the
+    // prices load.
+    const unnamedNow = names ? names.apply(sections) : [];
+    const namesDone = unnamedNow.length ? names.fill(unnamedNow) : null;
     const [p, ext] = await Promise.all([
-      symbols.length ? prices.get(symbols, budgetMs) : { quotes: {}, source: {}, stale: [], pending: [], missing: [] },
+      symbols.length ? prices.get(symbols, budgetMs, fresh ? { maxAgeMs: 15_000 } : {}) : { quotes: {}, source: {}, stale: [], pending: [], missing: [] },
       outside && symbols.length ? active.extended(symbols).catch(() => ({})) : {},
     ]);
+    if (namesDone) { await Promise.race([namesDone, new Promise(r => setTimeout(r, 300))]); names.apply(sections); }
     const caps = {};
     for (const s of sections) for (const g of s.groups) for (const st of g.stocks) if (st.cap) caps[st.y] = st.cap;
     const quotes = {};
@@ -272,7 +330,8 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
       query: q, updated: Date.now(),
       source: !symbols.length || Object.keys(quotes).length ? (p.stale.length ? 'stale' : 'live') : (p.pending.length ? 'loading' : 'none'),
       feeds: [...new Set(Object.values(p.source))], universe: sections, quotes,
-      pending: p.pending, stale: p.stale.length, missing: p.missing, unmatched, research, notes, usual: usual(),
+      pending: p.pending, stale: p.stale.length, missing: p.missing, unmatched, research, notes, usual: usual(), saved: savedNames(),
+      namesPending: unnamedNow.length ? names.pending(unnamedNow) : false,
       ...(outside ? { session: SESSION_WORD[session], extended: Object.keys(ext).length } : {}),
     };
   }
@@ -301,15 +360,18 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
     const url = new URL(req.url, 'http://localhost');
     if (!allowed(req, url.pathname)) return send(res, 403, { error: 'forbidden' });
     onActivity();
-    const q = url.searchParams.get('q') || '';
+    let q = url.searchParams.get('q') || '';
     const w = windowOf(url);
     try {
       switch (url.pathname) {
         // Read per request (~0.1 ms) so an updated skill never serves an old page.
         case '/': case '/index.html': return send(res, 200, readFileSync(pagePath), 'text/html; charset=utf-8');
-        case '/api/dashboard': return send(res, 200, await dashboard(q));
+        case '/api/dashboard': return send(res, 200, await dashboard(q, { fresh: url.searchParams.get('fresh') === '1' }));
         case '/api/show': {
           await index.ready();
+          // "Now add the banks": the window's current view plus the banks.
+          const asked = q;
+          q = withAdded(q, (views.get(w) || {}).q || '');
           // Research coming back is remembered first, so the question it answers, when the chat
           // repeats it in front of the lists ("show me the ASX 20; ASX 20: BHP.AX 16.5%, …"),
           // counts as answered instead of asking for research again.
@@ -318,7 +380,10 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
           const symbols = symbolsOf(sections);
           // Warm up before the page asks, and say which shares no feed has a price for (only
           // those whose feeds have answered: the rest are still loading, not missing).
+          // Warm up names and prices together; names that are back by then go into the reply.
+          const namesDone = names && symbols.length ? names.fill(names.apply(sections)) : null;
           if (symbols.length) notes.push(...missingPrices(sections, await prices.get(symbols, budgetMs)));
+          if (namesDone) { await Promise.race([namesDone, new Promise(r => setTimeout(r, 300))]); names.apply(sections); }
           if (isTitledList(q)) notes.push(...missingSizes(sections));
           views.set(w, { q, at: Date.now() });
           saveViews();
@@ -335,7 +400,8 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
           if (open.length) pendingResearch.set(w, { questions: open, at: Date.now() });
           // For what still needs research: how similar questions were answered before.
           const hints = memory ? open.flatMap(o => memory.similar(o).map(e => ({ for: o, question: e.question, how: e.how, sources: e.sources, days: e.days }))) : [];
-          return send(res, 200, { ...summarise(sections, unmatched, research, notes), window: w, viewers: watching(w), vocab, learned, hints, usual: usual() });
+          if (q !== asked) notes.unshift('Added to what this window showed: it now shows "' + q + '".');
+          return send(res, 200, { ...summarise(sections, unmatched, research, notes), q, window: w, viewers: watching(w), vocab, learned, hints, usual: usual() });
         }
         case '/api/memory': return send(res, 200, memory ? { ...memory.all(), usual: memory.frequent(8) } : { research: {}, portfolios: {}, usual: [] });
         case '/api/memory/forget': return send(res, 200, { forgotten: memory ? memory.forget(q) : false });
@@ -345,7 +411,12 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
           views.set(name, { q: '', at: Date.now() });
           return send(res, 200, { w: name });
         }
-        case '/api/current': return send(res, 200, views.get(w) || { q: '', at: 0 });
+        case '/api/last': return send(res, 200, { w: lastWindow() });
+        case '/api/current': return send(res, 200, { ...(views.get(w) || { q: '', at: 0 }), viewers: watching(w) });
+        case '/api/save': {
+          const target = url.searchParams.get('w') ? w : lastWindow();
+          return send(res, 200, { window: target, ...(await saveView(target, url.searchParams.get('name') || '', q)) });
+        }
         case '/api/events':
           res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
           res.write('retry: 2000\n\n');
@@ -359,7 +430,7 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
           const p = symbols.length ? await prices.get(symbols, budgetMs) : { history: {} };
           return send(res, 200, { updated: Date.now(), series: p.history });
         }
-        case '/api/vocab': return send(res, 200, { ...vocab, usual: usual() });
+        case '/api/vocab': return send(res, 200, { ...vocab, usual: usual(), saved: savedNames() });
         case '/api/promo': return send(res, 200, { about: ABOUT, items: promo ? promo.items() : [] });
         case '/api/health': return send(res, 200, { ok: true, app: 'stockwatcher', version: VERSION, pid: process.pid, stocks: index.rows().length, viewers: viewers.size });
         case '/api/stop': send(res, 200, { ok: true, stopping: true }); return onStop();

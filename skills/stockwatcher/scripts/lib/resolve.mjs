@@ -70,8 +70,11 @@ function stripFiller(s) {
 }
 
 // "nvidia, amd and tesla" → ["nvidia", "amd", "tesla"]
-export function splitQuery(q) {
-  return String(q || '').split(/\s*(?:,|;|\+|\/|&(?!\w)|\band\b|\bor\b|\bplus\b|\bvs\.?|\bversus\b)\s*/i).map(s => s.trim()).filter(Boolean);
+// In a researched list (strict) only lower-case words join items: "OR" and "AND" there are
+// tickers (PTT Oil and Retail is OR.BK).
+export function splitQuery(q, strict = false) {
+  const re = strict ? /\s*(?:,|;|\+|\/|&(?!\w)|\band\b|\bor\b|\bplus\b|\bvs\.?|\bversus\b)\s*/ : /\s*(?:,|;|\+|\/|&(?!\w)|\band\b|\bor\b|\bplus\b|\bvs\.?|\bversus\b)\s*/i;
+  return String(q || '').split(re).map(s => s.trim()).filter(Boolean);
 }
 
 const wordRe = phrase => new RegExp('(^| )' + phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?( |$)');
@@ -85,9 +88,16 @@ function synonymList() {
   return synCache;
 }
 
+// "saudi market heat map" is not the S&P 500: its everyday aliases ("market heat map", "the
+// market") stand back when the words name a market outside the US.
+const SP500_EXPLICIT = /s&p|spx|spy|sp ?500|standard/;
 function themeFor(text, themes) {
+  const foreign = marketSuffix(text);
   for (const t of themes) {
-    for (const a of t.aliases) if (wordRe(a).test(text)) return { theme: t, alias: a };
+    for (const a of t.aliases) {
+      if (foreign && t.id === 'sp500' && !SP500_EXPLICIT.test(a)) continue;
+      if (wordRe(a).test(text)) return { theme: t, alias: a };
+    }
   }
   return null;
 }
@@ -232,18 +242,56 @@ const SUFFIX = {
   SZ: ['Shenzhen', 'CNY'], NS: ['NSE India', 'INR'], BO: ['BSE India', 'INR'], TO: ['Toronto', 'CAD'], V: ['TSX Venture', 'CAD'],
   AX: ['ASX', 'AUD'], SA: ['B3', 'BRL'], MX: ['Mexico', 'MXN'], SI: ['Singapore', 'SGD'], TA: ['Tel Aviv', 'ILS'],
   ME: ['Moscow', 'RUB'],
+  BK: ['Thailand (SET)', 'THB'], SR: ['Saudi (Tadawul)', 'SAR'], JK: ['Jakarta', 'IDR'], KL: ['Bursa Malaysia', 'MYR'],
+  PS: ['Philippines', 'PHP'], NZ: ['New Zealand', 'NZD'], JO: ['Johannesburg', 'ZAc'], IS: ['Istanbul', 'TRY'],
+  QA: ['Qatar', 'QAR'], AE: ['Dubai', 'AED'], KW: ['Kuwait', 'KWF'], CA: ['Cairo', 'EGP'],
+  BA: ['Buenos Aires', 'ARS'], SN: ['Santiago', 'CLP'], LM: ['Lima', 'PEN'], CL: ['Colombia', 'COP'],
+  WA: ['Warsaw', 'PLN'], PR: ['Prague', 'CZK'], BD: ['Budapest', 'HUF'], VI: ['Vienna', 'EUR'], LS: ['Lisbon', 'EUR'],
+  IR: ['Dublin', 'EUR'], AT: ['Athens', 'EUR'], IC: ['Iceland', 'ISK'], RG: ['Riga', 'EUR'], TL: ['Tallinn', 'EUR'], VS: ['Vilnius', 'EUR'],
+  MU: ['Munich', 'EUR'], SG: ['Stuttgart', 'EUR'], BE: ['Berlin', 'EUR'], DU: ['Düsseldorf', 'EUR'], HM: ['Hamburg', 'EUR'],
+  IL: ['London (international)', 'USD'], AQ: ['Aquis', 'GBp'], NE: ['Cboe Canada', 'CAD'], CN: ['Canadian Securities Exchange', 'CAD'],
 };
+
+// A list titled with a market ("Thai market SET50", "Nikkei 225", "Saudi Tadawul") means its
+// bare tickers trade there: "DELTA" in a Thai list is DELTA.BK (Delta Electronics Thailand),
+// not Delta Air Lines. Only markets outside the US are listed.
+export const MARKETS = [
+  [/\b(thai|thailand|set ?50|set ?100|bangkok)\b/i, 'BK'], [/\b(saudi|tadawul|tasi|riyadh)\b/i, 'SR'],
+  [/\b(japan|japanese|nikkei|topix|tokyo)\b/i, 'T'], [/\b(korea|korean|kospi|krx|seoul)\b/i, 'KS'], [/\bkosdaq\b/i, 'KQ'],
+  [/\b(hong kong|hang seng|hkex)\b/i, 'HK'], [/\b(india|indian|nifty|sensex|nse)\b/i, 'NS'],
+  [/\b(brazil|brazilian|ibovespa|bovespa|b3)\b/i, 'SA'], [/\b(australia|australian|asx)\b/i, 'AX'],
+  [/\b(ftse|london|uk|british)\b/i, 'L'], [/\b(dax|german|germany|xetra|mdax)\b/i, 'DE'], [/\b(cac|france|french|paris)\b/i, 'PA'],
+  [/\b(tsx|canada|canadian|toronto)\b/i, 'TO'], [/\b(indonesia|indonesian|jakarta|idx)\b/i, 'JK'], [/\b(malaysia|malaysian|bursa|klci)\b/i, 'KL'],
+  [/\b(singapore|sti|sgx)\b/i, 'SI'], [/\b(taiwan|taiwanese|taiex|twse)\b/i, 'TW'], [/\b(shanghai|csi ?300)\b/i, 'SS'], [/\bshenzhen\b/i, 'SZ'],
+  [/\b(russia|russian|moex|imoex|moscow)\b/i, 'ME'], [/\b(swiss|switzerland|smi|zurich)\b/i, 'SW'], [/\b(spain|spanish|ibex|madrid)\b/i, 'MC'],
+  [/\b(italy|italian|ftse mib|milan)\b/i, 'MI'], [/\b(dutch|netherlands|aex|amsterdam)\b/i, 'AS'], [/\b(south africa|jse|johannesburg)\b/i, 'JO'],
+  [/\b(mexico|mexican|ipc)\b/i, 'MX'], [/\b(turkey|turkish|bist|istanbul)\b/i, 'IS'], [/\b(israel|israeli|tase|tel aviv)\b/i, 'TA'],
+  [/\b(sweden|swedish|stockholm|omxs)\b/i, 'ST'], [/\b(norway|norwegian|oslo)\b/i, 'OL'], [/\b(denmark|danish|copenhagen)\b/i, 'CO'],
+  [/\b(finland|finnish|helsinki)\b/i, 'HE'], [/\b(philippines|philippine|pse)\b/i, 'PS'], [/\b(new zealand|nzx)\b/i, 'NZ'],
+  [/\b(qatar|qatari)\b/i, 'QA'], [/\b(dubai|uae|emirates)\b/i, 'AE'], [/\b(poland|polish|warsaw|wig)\b/i, 'WA'],
+  [/\b(argentina|argentine|merval)\b/i, 'BA'], [/\b(chile|chilean|ipsa)\b/i, 'SN'], [/\b(egypt|egyptian|egx)\b/i, 'CA'],
+];
+export function marketSuffix(text) {
+  for (const [re, sfx] of MARKETS) if (re.test(String(text || ''))) return sfx;
+  return null;
+}
 
 // "OpenAI investors: MSFT, NVDA, 9984.T" names the list of picks.
 // The title may contain commas ("Berkshire top 10 (13F, 30 Sep 2026)") but not ":", ";" or "|".
 // A size after a ticker or name in a researched list: an index weight ("BHP.AX 9.8%") or a
-// market value in US dollars ("BHP.AX $160bn", "SAP.DE 250b", "7203.T 0.3tn"). Without one,
+// market value in US dollars ("BHP.AX 160bn", "BHP.AX $160bn", "SAP.DE 250b", "7203.T 0.3tn"). Without one,
 // a share that is not listed in the US has no market value here and its tile gets a median size.
 const SIZED = /^(.*?\S)\s*[=(:]?\s*(?:(\d+(?:\.\d+)?)\s*%|(?:US\$|USD\s*|\$)?(\d+(?:\.\d+)?)\s*(tn|trillion|t|bn|billion|b|mn|million|m)\b)\s*\)?\s*$/i;
 const UNIT = { t: 1e12, tn: 1e12, trillion: 1e12, b: 1e9, bn: 1e9, billion: 1e9, m: 1e6, mn: 1e6, million: 1e6 };
+// "000660.KS bn": the number was lost on the way (in double quotes the shell deletes "$22"):
+// the share is kept, without a size, instead of turning into a question to research.
+const LOST = /^(.*?\S)\s+\$?(?:tn|trillion|bn|billion|mn|million)\s*\)?\s*$/i;
 export function sizeOf(raw) {
+  const lost = LOST.exec(String(raw || ''));
+  if (lost && !/\d/.test(lost[0].slice(lost[1].length))) return { text: lost[1], size: null, lost: true };
   const m = SIZED.exec(String(raw || ''));
-  if (!m || !/[a-z]/i.test(m[1])) return { text: raw, size: null };
+  // Text with letters, or a numeric ticker ("9983", "005930"): not a bare number.
+  if (!m || !(/[a-z]/i.test(m[1]) || /^\d{3,6}[A-Z]?$/.test(m[1].trim()))) return { text: raw, size: null };
   return { text: m[1], size: m[2] != null ? { indexWeight: +m[2] || 0.004 } : { cap: Math.round(+m[3] * UNIT[m[4].toLowerCase()]) } };
 }
 
@@ -286,8 +334,18 @@ function resolveOne(query, index, themes) {
     picks.push({ ...(stock || stockOf(row)), ...(given || {}) });
   };
 
-  for (const part of splitQuery(query)) {
-    const { text: raw, size } = titled ? sizeOf(part) : { text: part, size: null };
+  // The market in the title counts only when most bare tickers are not US ones: "Japan
+  // exposure: AAPL, NKE" stays American, "Thai market SET50: ADVANC, AOT, DELTA" is Thai.
+  let hint = titled ? marketSuffix(picksTitle) : null;
+  if (hint) {
+    const BARE = /^[A-Z0-9][A-Z0-9&-]{0,11}$/;
+    const bare = splitQuery(query, true).map(p => sizeOf(p).text.trim()).filter(t => BARE.test(t));
+    if (!bare.length || bare.filter(t => !bySym.has(t)).length * 2 < bare.length) hint = null;
+  }
+  for (const part of splitQuery(query, !!titled)) {
+    let { text: raw, size } = titled ? sizeOf(part) : { text: part, size: null };
+    // A bare ticker in a list titled with a market gets that market's suffix ("DELTA" → "DELTA.BK").
+    if (hint && /^[A-Z0-9][A-Z0-9&-]{0,11}$/.test(raw.trim())) raw = raw.trim() + '.' + hint;
     given = size;
     const text = normalise(raw);
     const core = stripFiller(text);
@@ -311,6 +369,12 @@ function resolveOne(query, index, themes) {
       continue;
     }
     // 2. A curated theme ("neoclouds", "ai", "magnificent 7").
+    // In a researched list an upper-case "SPY" or "QQQ" is the fund itself, one share, not the
+    // whole index its name stands for.
+    if (themeHit && titled && tokens.length === 1 && /^[A-Z]{2,5}$/.test(tokens[0])) {
+      addPick(null, { y: tokens[0], t: tokens[0], n: tokens[0], x: 'US', c: 'USD' });
+      continue;
+    }
     if (themeHit) {
       const sec = sectionFromTheme(themeHit.theme, bySym);
       if (!sections.some(s => s.id === sec.id)) sections.push(sec);

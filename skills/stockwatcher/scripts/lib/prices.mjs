@@ -75,10 +75,20 @@ export function readSpark(json) {
     }
     return out;
   }
+  // fulldayPrice is the latest trade, after-hours and pre-market included.
   for (const [sym, v] of Object.entries(json || {})) {
-    if (v && Array.isArray(v.close)) out[sym] = { timestamp: v.timestamp, close: v.close };
+    if (v && Array.isArray(v.close)) out[sym] = { timestamp: v.timestamp, close: v.close, latest: v.fulldayPrice };
   }
   return out;
+}
+
+// The latest trade becomes the price of the latest day. Yahoo leaves that day's close empty
+// for hours after the close (Nvidia showed the day before's close as "today"), and a close
+// does not move after hours: the dashboard shows the latest price there is.
+export function withLatest(raw) {
+  const close = (raw.close || []).slice(), latest = +raw.latest;
+  if (close.length && latest > 0 && isFinite(latest)) close[close.length - 1] = latest;
+  return { timestamp: raw.timestamp, close };
 }
 
 export function readNasdaqChart(json) {
@@ -157,6 +167,7 @@ export async function fetchPrices(symbols, { fetchImpl = fetch, now = Date.now()
   const quotes = {}, history = {}, source = {};
   let old = 0;
   const take = (sym, raw, src) => {
+    raw = withLatest(raw);
     const q = summarise(raw.timestamp, raw.close, now);
     if (q && src === 'yahoo' && q.t < now / 1000 - STALE_DAYS * DAY) { old++; return; }
     if (q) { quotes[sym] = q; history[sym] = series(raw.timestamp, raw.close); source[sym] = src; onQuote(sym, q, history[sym], src); }
