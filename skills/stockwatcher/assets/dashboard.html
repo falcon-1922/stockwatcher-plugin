@@ -709,14 +709,35 @@ td.spark svg{width:90px;height:20px}
     var call = '/stockwatcher ' + state.q;
     if (navigator.clipboard) navigator.clipboard.writeText(call).then(done, function () {}); else done();
   });
-  // The chat runs the command; the server tells every page of this window about the new view.
-  if (window.EventSource) {
-    var events = new EventSource('api/events?w=' + state.w), version = null;
+  // The chat runs the command; this page asks the server for its window's view every 1.5 s.
+  // Short requests, not an open connection: browsers allow 6 open connections to one address,
+  // so with a stream per tab the 7th Stockwatcher tab never loaded. Asking also tells the
+  // server this page is open, so the chat updates it instead of opening another tab.
+  (function watch() {
+    var tab = Math.random().toString(36).slice(2, 12) + Date.now().toString(36), version = null, timer = null;
+    // Follows changes only, as the event stream did: the first answer is remembered, not shown
+    // (the URL or /api/current gave the page its view), so the page never jumps back to an
+    // older view while its own request from the box is still on the way.
+    var seen = null;
     // After the skill is updated the server restarts with a new version: reload to get the new page.
     var seeVersion = function (v) { if (!v) return; if (version && v !== version) location.reload(); version = v; };
-    events.addEventListener('hello', function (e) { try { seeVersion(JSON.parse(e.data).v); } catch (err) {} });
-    events.onmessage = function (e) { try { var d = JSON.parse(e.data); seeVersion(d.v); if (d.q !== state.q) { state.fromPage = false; show(d.q); } } catch (err) {} };
-  }
+    var ask = function () {
+      clearTimeout(timer);
+      getJson('api/watch?w=' + encodeURIComponent(state.w) + '&tab=' + tab).then(function (d) {
+        seeVersion(d.v);
+        if (typeof d.q !== 'string') return;
+        if (seen !== null && d.q !== seen && d.q !== state.q) { state.fromPage = false; show(d.q); }
+        seen = d.q;
+      }).catch(function () {}).then(function () { timer = setTimeout(ask, 1500); });
+    };
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) ask(); });
+    addEventListener('pagehide', function () {
+      var bye = 'api/bye?tab=' + tab;
+      if (navigator.sendBeacon) navigator.sendBeacon(bye); else fetch(bye, { keepalive: true }).catch(function () {});
+    });
+    addEventListener('pageshow', function (e) { if (e.persisted) ask(); });
+    ask();
+  })();
 
   function getJson(url) {
     return fetch(url, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });

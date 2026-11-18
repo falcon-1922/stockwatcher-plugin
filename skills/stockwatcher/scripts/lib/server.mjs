@@ -1,6 +1,8 @@
 // A small local web server: the dashboard page plus JSON endpoints. The person steers it from
 // the chat: each run of the command calls /api/show, and every open page switches to the new
-// view at once (server-sent events), so no new tab is needed.
+// view within a couple of seconds (it asks /api/watch), so no new tab is needed. Pages ask with
+// short requests instead of keeping a connection open: browsers allow only 6 open connections
+// to one address, and an event stream per tab used them up, so the 7th tab never loaded.
 // Windows: every page belongs to a named window ("main" unless the URL says ?w=w2). A request
 // changes one window; "in a new window" makes a new name and opens a tab for it.
 //   GET /                         the page
@@ -8,7 +10,10 @@
 //                                 research in the chat, and how many pages show that window
 //   GET /api/window/new           a fresh window name { w }
 //   GET /api/current?w=...        the window's view { q }
-//   GET /api/events?w=...         event stream: { q } whenever the window's view changes
+//   GET /api/watch?w=...&tab=...  the window's view { q, v }; also says this page is open
+//   GET|POST /api/bye?tab=...     this page was closed
+//   GET /api/events?w=...         event stream (pages of 3.10.0 and older: they reload on the
+//                                 new version's hello into the page that uses /api/watch)
 //   GET /api/dashboard?q=...      sections + prices; answers within ~1.2 s with what is ready
 //                                 and lists the rest as `pending` (the page asks again)
 //   GET /api/history?q=...        a year of daily closes per share (heat-map slider)
@@ -151,10 +156,18 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
   const saveViews = () => { if (viewsFile) saveFile(viewsFile, JSON.stringify(Object.fromEntries([...views].filter(([, v]) => v.q).slice(-50))), log); };
   // What the person asks for most, for the page's buttons (their saved portfolio first).
   const usual = () => (memory ? memory.frequent(4).map(e => e.q) : []);
-  const viewers = new Map();   // open event stream → window name, one per open page
+  const viewers = new Map();   // open event stream → window name (pages of older versions)
+  // Pages that asked /api/watch: tab id → { w, at }. A page in view asks every 1.5 s; one in a
+  // background tab is slowed by the browser to about once a minute, so it counts as open for
+  // PRESENCE_MS after its last request, or until it says bye when it closes.
+  const tabs = new Map();
+  const PRESENCE_MS = 90_000;
   let windowCount = 1;
   const windowOf = url => { const w = url.searchParams.get('w') || 'main'; return /^[a-z0-9-]{1,20}$/i.test(w) ? w : 'main'; };
-  const watching = w => [...viewers.values()].filter(x => x === w).length;
+  const openTabs = () => { const now = Date.now(); for (const [id, t] of tabs) if (now - t.at > PRESENCE_MS) tabs.delete(id); return [...tabs.values()]; };
+  const watching = w => [...viewers.values()].filter(x => x === w).length + openTabs().filter(t => t.w === w).length;
+  const viewerCount = () => viewers.size + openTabs().length;
+  const tabOf = url => { const t = url.searchParams.get('tab') || ''; return /^[a-z0-9-]{4,40}$/i.test(t) ? t : ''; };
 
   function local(q) {
     const key = q.trim().toLowerCase();
@@ -504,6 +517,13 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
           const target = url.searchParams.get('w') ? w : lastWindow();
           return send(res, 200, { window: target, ...(await saveView(target, url.searchParams.get('name') || '', q)) });
         }
+        case '/api/watch': {
+          const tab = tabOf(url);
+          if (tab) { if (tabs.size > 500 && !tabs.has(tab)) openTabs(); tabs.set(tab, { w, at: Date.now() }); }
+          if (!views.has(w)) views.set(w, { q: '', at: 0 });
+          return send(res, 200, { q: views.get(w).q, v: VERSION });
+        }
+        case '/api/bye': { tabs.delete(tabOf(url)); return send(res, 200, { ok: true }); }
         case '/api/events':
           res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
           res.write('retry: 2000\n\n');
@@ -519,7 +539,7 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
         }
         case '/api/vocab': return send(res, 200, { ...vocab, usual: usual(), saved: savedNames() });
         case '/api/promo': return send(res, 200, { about: ABOUT, items: promo ? promo.items() : [] });
-        case '/api/health': return send(res, 200, { ok: true, app: 'stockwatcher', version: VERSION, pid: process.pid, stocks: index.rows().length, viewers: viewers.size });
+        case '/api/health': return send(res, 200, { ok: true, app: 'stockwatcher', version: VERSION, pid: process.pid, stocks: index.rows().length, viewers: viewerCount() });
         case '/api/stop': send(res, 200, { ok: true, stopping: true }); return onStop();
         default: return send(res, 404, { error: 'not found' });
       }
