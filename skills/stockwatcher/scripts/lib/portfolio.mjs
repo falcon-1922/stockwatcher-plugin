@@ -64,6 +64,7 @@ export function readInfoTable(xml) {
     const o = by.get(cusip) || { name: g('nameOfIssuer'), cls: g('titleOfClass'), cusip, value: 0, shares: 0 };
     o.value += +g('value') || 0;
     o.shares += +g('sshPrnamt') || 0;
+    if (g('sshPrnamtType') && g('sshPrnamtType').toUpperCase() !== 'SH') o.notShares = true;   // a bond's principal, not a share count
     by.set(cusip, o);
   }
   return [...by.values()].sort((a, b) => b.value - a.value);
@@ -87,13 +88,14 @@ export function portfolioSection(f, tickers, index, now = Date.now()) {
     if (!row) row = findByName(p.name.replace(/\b(inc|corp|corporation|co|ltd|limited|plc|holdings?|group|cl [a-c]|com)\b\.?/gi, ' '));
     if (!row) { unknown += p.value; continue; }
     if (seen.has(row[0])) {                                   // two filing lines for one share
-      for (const g of bySector.values()) { const s = g.find(x => x.y === row[0]); if (s) { s.held += p.value; s.weight = s.held / total; s.x = money(s.held) + ' · ' + (s.weight * 100).toFixed(1) + '%'; } }
+      for (const g of bySector.values()) { const s = g.find(x => x.y === row[0]); if (s) { s.held += p.value; s.weight = s.held / total; s.x = money(s.held) + ' · ' + (s.weight * 100).toFixed(1) + '%'; if (s.qty != null) s.qty = p.notShares || !p.shares ? null : s.qty + p.shares; } }
       continue;
     }
     seen.add(row[0]);
     const sector = TO_GICS[row[2]] || 'Other';
     if (!bySector.has(sector)) bySector.set(sector, []);
-    bySector.get(sector).push({ ...stockOf(row), held: p.value, weight: p.value / total, x: money(p.value) + ' · ' + (p.value / total * 100).toFixed(1) + '%' });
+    // qty: the shares held, so the server can value the position at today's price.
+    bySector.get(sector).push({ ...stockOf(row), held: p.value, weight: p.value / total, x: money(p.value) + ' · ' + (p.value / total * 100).toFixed(1) + '%', ...(p.shares > 0 && !p.notShares ? { qty: p.shares } : {}) });
   }
   const sum = l => l.reduce((a, s) => a + s.held, 0);
   const groups = [...bySector.entries()].map(([name, stocks]) => ({ name, note: '', stocks: stocks.sort((a, b) => b.held - a.held) }))

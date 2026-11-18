@@ -11,7 +11,10 @@ import { stockOf } from './resolve.mjs';
 import { TO_GICS } from './indices.mjs';
 
 const UA = 'stockwatcher-skill/1.0 (local stock dashboard)';
-const TTL_MS = 10 * 60_000;
+// The page asks again every minute; one answer serves every page open in that minute. A page
+// that has just opened asks with fresh, and gets counts no older than FRESH_MS.
+const TTL_MS = 60_000;
+const FRESH_MS = 15_000;
 export const TOP = 100;
 
 export const SOCIAL = /\b(wall\s*street\s*bets|wallstreetbets|wsb|reddit)\b|reddit\.com\/r\/\w+/i;
@@ -97,7 +100,7 @@ async function redditThread(id, known, fetchImpl, env) {
   return { counts, title: post.title, read, total: post.num_comments };
 }
 
-// Returns get(query, index) → { section, note } with answers cached for ten minutes.
+// Returns get(query, index, { fresh }) → { section, note } with answers cached for a minute.
 export function createSocial({ fetchImpl = fetch, env = process.env, log = () => {} } = {}) {
   const cache = new Map(), inflight = new Map();
   async function load(key, index, q) {
@@ -118,11 +121,12 @@ export function createSocial({ fetchImpl = fetch, env = process.env, log = () =>
       note: id ? 'Counting this exact thread needs a free Reddit app (REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET); showing the whole subreddit over the last 24 hours instead.' : '',
     };
   }
-  return async function get(q, index) {
+  return async function get(q, index, { fresh = false } = {}) {
     const key = threadId(q) || 'wsb';
     const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
+    if (hit && Date.now() - hit.at < (fresh ? FRESH_MS : TTL_MS)) return hit.value;
     if (!inflight.has(key)) inflight.set(key, load(key, index, q).then(value => { cache.set(key, { at: Date.now(), value }); return value; }).finally(() => inflight.delete(key)));
-    return inflight.get(key);
+    // ApeWisdom down: the last counts there are, rather than none.
+    return hit ? inflight.get(key).catch(e => { log('apewisdom failed, keeping the last counts: ' + e.message); return hit.value; }) : inflight.get(key);
   };
 }

@@ -1,8 +1,9 @@
 // The list of US-listed stocks with sector, industry and market value, from Nasdaq's public
 // screener (one request, about 7,000 rows). Rows are kept compact:
-//   [symbol, name, sector, industry, marketCapUSD, country]
+//   [symbol, name, sector, industry, marketCapUSD, country, priceOfThatCap]
 // A snapshot ships with the skill (data/index.json.gz) so the first start needs no network;
-// a newer copy is fetched in the background once a day and kept in the cache folder.
+// while a dashboard is open the server reads a newer copy every few minutes (refreshSoon) and
+// keeps it in the cache folder.
 import { readFileSync, writeFileSync, renameSync, mkdirSync, statSync } from 'node:fs';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { dirname } from 'node:path';
@@ -41,7 +42,15 @@ export function loadIndex({ bundledPath, cachePath, fetchImpl = fetch, log = () 
     return snap;
   }, e => { log('index refresh failed, keeping the old one: ' + e.message); return snap; }).finally(() => { running = null; }));
   if (autoRefresh && Date.now() - snap.at > maxAgeMs) refresh();
-  return { rows: () => snap.rows, at: () => snap.at, refresh, ready: () => (snap.rows.length ? Promise.resolve(snap) : refresh()) };
+  // Called on every dashboard request: a new read when the list is older than ageMs, at most
+  // one try per ageMs when Nasdaq is failing. Never waits.
+  let tried = 0;
+  const refreshSoon = (ageMs = 5 * 60_000) => {
+    const now = Date.now();
+    if (!autoRefresh || running || now - snap.at < ageMs || now - tried < ageMs) return;
+    tried = now; refresh();
+  };
+  return { rows: () => snap.rows, at: () => snap.at, refresh, refreshSoon, ready: () => (snap.rows.length ? Promise.resolve(snap) : refresh()) };
 }
 
 export const SCREENER_URL = 'https://api.nasdaq.com/api/screener/stocks?tableonly=true&download=true';
@@ -70,7 +79,10 @@ export function compactRows(rows) {
     if (industry === 'Blank Checks' || NOT_A_SHARE.some(re => re.test(r.name || ''))) continue;
     const cap = Math.round(+String(r.marketCap || '0').replace(/[^0-9.]/g, '')) || 0;
     if (!cap) continue;
-    out.push([sym, cleanName(r.name), sector, industry, cap, String(r.country || '').trim()]);
+    // The price the market value was worked out at, so the server can carry the value forward
+    // with the live price (value × price now ÷ this price) between screener reads.
+    const at = +String(r.lastsale || '').replace(/[^0-9.]/g, '') || 0;
+    out.push([sym, cleanName(r.name), sector, industry, cap, String(r.country || '').trim(), at]);
   }
   out.sort((a, b) => b[4] - a[4]);
   return out;

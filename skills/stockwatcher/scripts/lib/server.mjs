@@ -50,15 +50,16 @@ export function withAdded(q, previous) {
   return extra ? previous + '; ' + extra : q;
 }
 
-// A researched list whose shares have no size here (not listed in the US) would be drawn with
-// equal tiles, which misleads. The chat is told, in the list's own format, what to add.
-export function missingSizes(sections) {
+// A researched list whose shares have no size here would be drawn with equal tiles, which
+// misleads. The chat is told, in the list's own format, what to add. liveCaps: shares the live
+// quote feed has a market value for (any exchange Yahoo covers); those need no research.
+export function missingSizes(sections, liveCaps = new Set()) {
   const out = [];
   for (const sec of sections) {
     if (sec.sizeBy && sec.sizeBy !== 'indexWeight') continue;
     const byWeight = sec.sizeBy === 'indexWeight';
     const all = sec.groups.flatMap(g => g.stocks);
-    const bare = all.filter(st => !(byWeight ? st.indexWeight > 0 : st.cap > 0));
+    const bare = all.filter(st => !(byWeight ? st.indexWeight > 0 : st.cap > 0 || liveCaps.has(st.y)));
     if (!bare.length) continue;
     const a = bare[0].y, b = (bare[1] || bare[0]).y;
     out.push('SIZES MISSING: ' + bare.length + ' of ' + all.length + ' shares in "' + sec.title + '" have no ' + (byWeight ? 'index weight' : 'market value')
@@ -104,7 +105,45 @@ export function summarise(sections, unmatched, research, notes = []) {
 // `moex` (optional): the Moscow Exchange's index weights and market values, see moex.mjs.
 // `themesAt` (optional): changes when a theme was updated in place (the index's daily weights).
 // `names` (optional): company names for bare tickers, see names.mjs.
-export function createServer({ pagePath, index, themes, prices = createPriceCache(), social = null, portfolios = null, memory = null, promo = null, active = null, moex = null, names = null, themesAt = () => 0, viewsFile = null, budgetMs = 1200, log = () => {}, onStop = () => {}, onActivity = () => {} }) {
+// Tile sizes that move with the prices, on a copy (the sections are cached and shared):
+// - index weights published on a known day (weightsDate, the DAX): each weight × price now ÷
+//   close that day, scaled back to the same total, as the index itself drifts between reviews;
+// - a 13F position with its share count (qty): shares × price now, instead of the value on the
+//   quarter's last day.
+const dayNo = iso => Math.floor(Date.parse(iso + 'T00:00:00Z') / 86400_000);
+function closeOn(h, day) {
+  if (!h || !h.t) return null;
+  let c = null;
+  for (let i = 0; i < h.t.length; i++) { if (h.t[i] <= day) c = h.c[i]; else break; }
+  return c;
+}
+export function liveSizes(sections, quotes, history) {
+  const money = v => (v >= 1e12 ? '$' + (v / 1e12).toFixed(2) + 'tn' : v >= 1e9 ? '$' + (v / 1e9).toFixed(1) + 'bn' : '$' + Math.round(v / 1e6) + 'm');   // as in portfolio.mjs
+  return sections.map(sec => {
+    if (sec.sizeBy === 'indexWeight' && sec.weightsDate) {
+      const day = dayNo(sec.weightsDate);
+      const all = sec.groups.flatMap(g => g.stocks);
+      const before = all.reduce((a, st) => a + (st.indexWeight || 0), 0);
+      const moved = new Map();
+      for (const st of all) {
+        const q = quotes[st.y], base = closeOn(history[st.y], day);
+        const price = q && (q.close != null ? q.close : q.p);
+        moved.set(st, st.indexWeight > 0 && price > 0 && base > 0 ? st.indexWeight * price / base : st.indexWeight || 0);
+      }
+      const after = [...moved.values()].reduce((a, v) => a + v, 0);
+      if (!(after > 0)) return sec;
+      return { ...sec, groups: sec.groups.map(g => ({ ...g, stocks: g.stocks.map(st => ({ ...st, indexWeight: +(moved.get(st) * before / after).toFixed(3) })) })) };
+    }
+    if (sec.sizeBy === 'held' && sec.groups.some(g => g.stocks.some(st => st.qty > 0))) {
+      const value = st => { const q = quotes[st.y], price = q && (q.close != null ? q.close : q.p); return st.qty > 0 && price > 0 ? st.qty * price : st.held; };
+      const total = sec.groups.reduce((a, g) => a + g.stocks.reduce((b, st) => b + value(st), 0), 0);
+      return { ...sec, groups: sec.groups.map(g => ({ ...g, stocks: g.stocks.map(st => { const v = value(st); return { ...st, held: Math.round(v), weight: v / total, x: money(v) + ' · ' + (v / total * 100).toFixed(1) + '%' }; }) })) };
+    }
+    return sec;
+  });
+}
+
+export function createServer({ pagePath, index, themes, prices = createPriceCache(), social = null, portfolios = null, memory = null, promo = null, active = null, moex = null, names = null, live = null, themesAt = () => 0, viewsFile = null, budgetMs = 1200, log = () => {}, onStop = () => {}, onActivity = () => {} }) {
   const resolved = new Map(); // query → { at, result }   (the index changes once a day at most)
   const vocab = vocabulary(themes);
   const views = new Map([['main', { q: '', at: 0 }]]);   // window name → its current view
@@ -225,7 +264,7 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
       const parts = splitQuery(rest.replace(/https?:\/\/\S*reddit\.com\/\S*/gi, ' wsb '));
       rest = parts.filter(p => !isSocial(p)).join(', ');
       try {
-        const s = await social(q, index.rows());
+        const s = await social(q, index.rows(), { fresh: !!ctx.fresh });
         if (s.section) sections.push(s.section);
         if (s.note) notes.push(s.note);
       } catch (e) { notes.push('The r/wallstreetbets mention counts are unavailable right now (' + e.message + ').'); }
@@ -302,35 +341,67 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
 
   // fresh: a page that has just opened (or come back into view) gets prices fetched now, not
   // what was cached minutes ago.
+  // Everything else on the page is refreshed with it: r/wallstreetbets counts (fresh on open,
+  // then every minute), the stock list's market values (a new screener read every few minutes,
+  // carried forward with each minute's prices in between).
   async function dashboard(q, { fresh = false } = {}) {
-    const { sections, unmatched, research, notes, session } = await lookup(q);
+    if (index.refreshSoon) index.refreshSoon();
+    const { sections, unmatched, research, notes, session } = await lookup(q, { fresh });
     const symbols = symbolsOf(sections);
     const outside = session && session !== 'regular' && active;
     // Shares that came as bare tickers ("9983.T") get their company names, looked up while the
     // prices load.
     const unnamedNow = names ? names.apply(sections) : [];
     const namesDone = unnamedNow.length ? names.fill(unnamedNow) : null;
-    const [p, ext] = await Promise.all([
+    // live: Yahoo's quote feed, the latest price, today's change and market value of every
+    // share (not Moscow ones: the exchange's own feed is the source there). Waited for at most
+    // budgetMs like the prices; what is late comes with the next minute's refresh.
+    const liveSyms = live ? symbols.filter(x => !/\.ME$/i.test(x)) : [];
+    const [p, ext, lq] = await Promise.all([
       symbols.length ? prices.get(symbols, budgetMs, fresh ? { maxAgeMs: 15_000 } : {}) : { quotes: {}, source: {}, stale: [], pending: [], missing: [] },
       outside && symbols.length ? active.extended(symbols).catch(() => ({})) : {},
+      liveSyms.length ? Promise.race([live.get(liveSyms).catch(() => ({})), new Promise(r => setTimeout(() => r({}), budgetMs + 800))]) : {},
     ]);
     if (namesDone) { await Promise.race([namesDone, new Promise(r => setTimeout(r, 300))]); names.apply(sections); }
-    const caps = {};
-    for (const s of sections) for (const g of s.groups) for (const st of g.stocks) if (st.cap) caps[st.y] = st.cap;
+    const caps = {}, sized = new Set();
+    for (const s of sections) for (const g of s.groups) for (const st of g.stocks) {
+      if (!s.sizeBy) sized.add(st.y);
+      if (!st.cap) continue;
+      // A screener value moves with the price: value × regular price now ÷ price it was read at.
+      const v = p.quotes[st.y], at = st.capAt && st.capAt[0] === st.cap ? st.capAt[1] : 0;
+      caps[st.y] = at > 0 && v && v.p > 0 && p.source[st.y] !== 'nasdaq' ? Math.round(st.cap * v.p / at) : st.cap;
+    }
     const quotes = {};
-    for (const [sym, v] of Object.entries(p.quotes)) {
-      let qt = caps[sym] ? { ...v, cap: caps[sym] } : v;
+    const syms = new Set([...Object.keys(p.quotes), ...Object.keys(lq)]);
+    for (const sym of syms) {
+      let qt = p.quotes[sym] || null;
+      const L = lq[sym];
+      if (L) {
+        // The live quote is the price and today's move; the longer periods are carried over
+        // from the daily closes (the same base, today's price).
+        const r = qt && qt.p > 0 ? L.p / qt.p : null, mv = x => (x == null || r == null ? null : +((1 + x) * r - 1).toFixed(5));
+        qt = { ...(qt || { s: [], hi: L.p, lo: L.p }), p: L.p, d: L.d != null ? +L.d.toFixed(5) : (L.prev ? +(L.p / L.prev - 1).toFixed(5) : (qt ? qt.d : null)),
+          m: qt ? mv(qt.m) : null, y: qt ? mv(qt.y) : null, a: qt ? mv(qt.a) : null, t: L.at || (qt && qt.t), live: 1 };
+        if (qt.hi != null && L.p > qt.hi) qt.hi = L.p;
+        if (qt.lo != null && L.p < qt.lo) qt.lo = L.p;
+        if (L.cap && sized.has(sym)) caps[sym] = L.cap;
+      }
+      if (!qt) continue;
+      if (caps[sym]) qt = { ...qt, cap: caps[sym] };
       // Outside regular hours "today" is the move from the last regular close to the latest
-      // extended-hours trade.
-      const e = ext[sym];
+      // extended-hours trade: Yahoo's own after-hours / pre-market trade first (Nasdaq's
+      // watchlist was a day behind on 17 Nov 2026), Nasdaq's otherwise.
+      const e = outside ? (L && L.ext ? { p: L.ext.p, at: new Date(L.ext.at * 1000).toISOString().slice(11, 16) + ' UTC' } : ext[sym]) : null;
       if (e && qt.p) qt = { ...qt, close: qt.p, p: e.p, d: +(e.p / qt.p - 1).toFixed(5), xt: e.at };
       quotes[sym] = qt;
     }
+    const missing = p.missing.filter(x => !quotes[x]);
+    const universe = liveSizes(sections, quotes, p.history || {});
     return {
       query: q, updated: Date.now(),
       source: !symbols.length || Object.keys(quotes).length ? (p.stale.length ? 'stale' : 'live') : (p.pending.length ? 'loading' : 'none'),
-      feeds: [...new Set(Object.values(p.source))], universe: sections, quotes,
-      pending: p.pending, stale: p.stale.length, missing: p.missing, unmatched, research, notes, usual: usual(), saved: savedNames(),
+      feeds: [...new Set([...Object.values(p.source), ...(Object.keys(lq).length ? ['yahoo quotes'] : [])])], universe, quotes,
+      pending: p.pending.filter(x => !quotes[x]), stale: p.stale.length, missing, unmatched, research, notes, usual: usual(), saved: savedNames(),
       namesPending: unnamedNow.length ? names.pending(unnamedNow) : false,
       ...(outside ? { session: SESSION_WORD[session], extended: Object.keys(ext).length } : {}),
     };
@@ -384,7 +455,15 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
           const namesDone = names && symbols.length ? names.fill(names.apply(sections)) : null;
           if (symbols.length) notes.push(...missingPrices(sections, await prices.get(symbols, budgetMs)));
           if (namesDone) { await Promise.race([namesDone, new Promise(r => setTimeout(r, 300))]); names.apply(sections); }
-          if (isTitledList(q)) notes.push(...missingSizes(sections));
+          if (isTitledList(q)) {
+            // Market values come live from Yahoo's quote feed for every exchange it covers; they
+            // replace sizes given with a list. Only what it has no value for needs research.
+            const byCap = sections.filter(sec => !sec.sizeBy).flatMap(sec => sec.groups.flatMap(g => g.stocks.map(st => st.y))).filter(x => !/\.ME$/i.test(x));
+            const lq = live && byCap.length ? await Promise.race([live.get(byCap).catch(() => ({})), new Promise(r => setTimeout(() => r({}), 4000))]) : {};
+            const liveCaps = new Set(Object.keys(lq).filter(x => lq[x].cap > 0));
+            notes.push(...missingSizes(sections, liveCaps));
+            if (liveCaps.size) notes.push('MARKET VALUES: live from Yahoo Finance for ' + liveCaps.size + ' of ' + byCap.length + ' shares, updated every minute; they replace any sizes given with the list. Tell the person the tiles are sized by current market value, not by the numbers you looked up.');
+          }
           views.set(w, { q, at: Date.now() });
           saveViews();
           broadcast(w);

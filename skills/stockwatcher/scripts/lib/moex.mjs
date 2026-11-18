@@ -114,7 +114,8 @@ export function readCbrUsd(xml) {
 
 // What the server keeps: the index theme up to date, market values for sizing, and nothing
 // on disk (all of it is one or two requests away).
-export function createMoex({ fetchImpl = fetch, log = () => {}, indexMs = 6 * 3600_000, capsMs = 3600_000 } = {}) {
+// Both refreshed every minute, like the prices.
+export function createMoex({ fetchImpl = fetch, log = () => {}, indexMs = 60_000, capsMs = 60_000 } = {}) {
   let caps = null, capsAt = 0, capsLoading = null;
   const state = { indexAt: 0 };
 
@@ -144,12 +145,12 @@ export function createMoex({ fetchImpl = fetch, log = () => {}, indexMs = 6 * 36
     const bare = [];
     for (const s of sections) {
       if (s.sizeBy) continue;   // index weight, holdings or volume already size these
-      for (const g of s.groups) for (const st of g.stocks) if (isMoex(st.y) && !(st.cap > 0)) bare.push(st);
+      for (const g of s.groups) for (const st of g.stocks) if (isMoex(st.y) && (!(st.cap > 0) || st.capFrom === 'moex')) bare.push(st);   // the exchange's own values are updated
     }
     if (!bare.length) return 0;
     await Promise.race([capsSoon(), new Promise(r => { const t = setTimeout(r, budgetMs); if (t.unref) t.unref(); })]);
     let n = 0;
-    if (caps) for (const st of bare) { const c = caps.get(st.y.toUpperCase()); if (c) { st.cap = c; n++; } }
+    if (caps) for (const st of bare) { const c = caps.get(st.y.toUpperCase()); if (c) { st.cap = c; st.capFrom = 'moex'; n++; } }
     return n;
   }
 

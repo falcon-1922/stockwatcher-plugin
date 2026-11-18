@@ -8,7 +8,8 @@
   "dax40"
  ],
  "sizeBy": "indexWeight",
- "blurb": "Tile area shows DAX index weight on 16 November 2026, as published by Deka. Point at a tile for its weight.",
+ "blurb": "Tile area shows DAX index weight, as published by Deka on 16 November 2026 and carried forward with each share’s price since. Point at a tile for its weight.",
+ "weightsDate": "2026-11-16",
  "groups": [
   {
    "name": "DAX constituents",

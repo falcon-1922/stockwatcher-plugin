@@ -75,16 +75,19 @@ export function readSpark(json) {
     }
     return out;
   }
-  // fulldayPrice is the latest trade, after-hours and pre-market included.
+  // regularMarketPrice is the latest regular-session trade (the close once the market shuts).
+  // Not fulldayPrice: it is no trade at all, and it kept drifting after the close (Nvidia on
+  // 17 Nov 2026: 157.49, 157.35, 157.21, 156.92 with the close at 155.46 and the last
+  // after-hours trade at 162.94).
   for (const [sym, v] of Object.entries(json || {})) {
-    if (v && Array.isArray(v.close)) out[sym] = { timestamp: v.timestamp, close: v.close, latest: v.fulldayPrice };
+    if (v && Array.isArray(v.close)) out[sym] = { timestamp: v.timestamp, close: v.close, latest: v.regularMarketPrice };
   }
   return out;
 }
 
-// The latest trade becomes the price of the latest day. Yahoo leaves that day's close empty
-// for hours after the close (Nvidia showed the day before's close as "today"), and a close
-// does not move after hours: the dashboard shows the latest price there is.
+// The latest regular-session trade becomes the price of the latest day. Yahoo leaves that
+// day's close empty for hours after the close (Nvidia showed the day before's close as
+// "today"). After-hours and pre-market trades are added by the server (active.extended).
 export function withLatest(raw) {
   const close = (raw.close || []).slice(), latest = +raw.latest;
   if (close.length && latest > 0 && isFinite(latest)) close[close.length - 1] = latest;

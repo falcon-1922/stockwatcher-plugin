@@ -115,7 +115,9 @@ export function prettyIndustry(ind) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export const stockOf = row => ({ y: row[SYM], t: row[SYM], n: row[NAME], x: 'US', c: 'USD', cap: row[CAP] });
+// capAt: [market value, the price it was worked out at], for carrying the value forward with
+// the live price. It applies only while cap is still that value (a researched size replaces it).
+export const stockOf = row => ({ y: row[SYM], t: row[SYM], n: row[NAME], x: 'US', c: 'USD', cap: row[CAP], ...(row[6] > 0 ? { capAt: [row[CAP], row[6]] } : {}) });
 
 // Symbol map and name search for one index, built once per index.
 const helpers = new WeakMap();

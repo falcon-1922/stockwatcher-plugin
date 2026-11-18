@@ -98,7 +98,7 @@ export function createActive({ fetchImpl = fetch, log = () => {}, now = () => Da
   const getJson = (url, ms) => fetchImpl(url, { headers, signal: AbortSignal.timeout(ms) }).then(r => { if (!r.ok) throw new Error('Nasdaq answered ' + r.status); return r.json(); });
 
   async function rows() {
-    if (screener && now() - screenerAt < 5 * 60_000) return screener;
+    if (screener && now() - screenerAt < 60_000) return screener;
     screenerRun = screenerRun || getJson(SCREENER_URL, 8000).then(j => {
       const r = j && j.data && j.data.rows;
       if (!Array.isArray(r) || r.length < 1000) throw new Error('the Nasdaq screener returned too little');
