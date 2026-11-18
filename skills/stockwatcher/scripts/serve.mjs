@@ -14,6 +14,7 @@ import { createPortfolios } from './lib/portfolio.mjs';
 import { createMemory } from './lib/memory.mjs';
 import { createPromo } from './lib/promo.mjs';
 import { createActive } from './lib/active.mjs';
+import { createMoex } from './lib/moex.mjs';
 import { homeDir, dataDir, DEFAULT_PORT } from './lib/home.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -31,6 +32,10 @@ if (process.env.STOCKWATCHER_NO_YAHOO === '1') yahooState.pausedUntil = Infinity
 const themes = loadThemes(join(root, 'data'));
 const index = loadIndex({ bundledPath: join(root, 'data', 'index.json.gz'), cachePath: join(home, 'index.json.gz'), fetchImpl, log });
 const prices = createPriceCache({ fetchImpl, log, file: join(home, 'prices.json') });
+// The MOEX Russia index ships with the weights of the day it was built; the exchange's own
+// figures replace them at start and every six hours.
+const moex = process.env.STOCKWATCHER_OFFLINE === '1' ? null : createMoex({ fetchImpl, log });
+if (moex) moex.keepIndexFresh(themes.find(t => t.id === 'imoex'));
 
 const quit = why => { log(why + ', stopping'); prices.flush(); setTimeout(() => process.exit(0), 50); };
 let idle;
@@ -51,6 +56,7 @@ const server = createServer({
   social: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createSocial({ fetchImpl, log }),
   portfolios: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createPortfolios({ fetchImpl, log, file: join(home, 'portfolios.json') }),
   active: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createActive({ fetchImpl, log }),
+  moex, themesAt: () => (moex ? moex.state.indexAt : 0),
   onActivity: touch,
   onStop: () => quit('stop requested'),
 });

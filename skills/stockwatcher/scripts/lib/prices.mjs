@@ -2,6 +2,12 @@
 // Source 1: Yahoo Finance's public spark feed (batches of 20, worldwide listings).
 // Source 2: Nasdaq's public chart feed, one request per symbol, US listings only. Used for
 // whatever Yahoo did not return (Yahoo rate-limits busy IP addresses with HTTP 429).
+// Moscow listings (".ME") come from the Moscow Exchange itself, see moex.mjs; Yahoo is only
+// their fallback. A Yahoo answer whose last close is weeks old (a market it stopped
+// following) counts as no answer, so the share is reported missing instead of drawn with
+// old prices as if they were today's.
+import { isMoex, moexHistory } from './moex.mjs';
+
 export const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 const BATCH = 20;
 const SPARK_POINTS = 60;
@@ -146,24 +152,42 @@ export async function pool(items, limit, fn) {
 
 // onQuote(symbol, quote, history, source) fires as each share arrives, so a caller can show
 // early results before the slowest request is back.
+export const STALE_DAYS = 14;
 export async function fetchPrices(symbols, { fetchImpl = fetch, now = Date.now(), log = () => {}, onQuote = () => {} } = {}) {
   const quotes = {}, history = {}, source = {};
+  let old = 0;
   const take = (sym, raw, src) => {
     const q = summarise(raw.timestamp, raw.close, now);
+    if (q && src === 'yahoo' && q.t < now / 1000 - STALE_DAYS * DAY) { old++; return; }
     if (q) { quotes[sym] = q; history[sym] = series(raw.timestamp, raw.close); source[sym] = src; onQuote(sym, q, history[sym], src); }
   };
+  // Moscow listings: the exchange's own feed, alongside Yahoo for everything else.
+  const moscow = symbols.filter(isMoex);
+  const moexDone = moscow.length ? (async () => {
+    const t0 = Date.now();
+    const got = await pool(moscow, 6, s => moexHistory(s, fetchImpl, now).then(v => { take(s, v, 'moex'); return v; }));
+    log('moex: ' + moscow.filter(s => quotes[s]).length + '/' + moscow.length + ' in ' + (Date.now() - t0) + 'ms'
+      + (got.some(r => !r.ok) ? ' (' + got.filter(r => !r.ok).length + ' failed: ' + got.find(r => !r.ok).error.message + ')' : ''));
+  })() : Promise.resolve();
   let yahooLimited = Date.now() < yahooState.pausedUntil;
-  if (!yahooLimited) {
+  const yahooFirst = symbols.filter(s => !isMoex(s));
+  if (!yahooLimited && yahooFirst.length) {
     const batches = [];
-    for (let i = 0; i < symbols.length; i += BATCH) batches.push(symbols.slice(i, i + BATCH));
+    for (let i = 0; i < yahooFirst.length; i += BATCH) batches.push(yahooFirst.slice(i, i + BATCH));
     const t0 = Date.now();
     // At most six requests at once: a whole index is 26 batches, and a burst invites a 429.
     await pool(batches, 6, b => (yahooLimited ? Promise.resolve() : yahooBatch(b, fetchImpl)).then(
       got => { for (const [sym, v] of Object.entries(got || {})) take(sym, v, 'yahoo'); },
       e => { if (e && e.status === 429) yahooLimited = true; }));
     if (yahooLimited) yahooState.pausedUntil = Date.now() + YAHOO_PAUSE_MS;
-    log('yahoo: ' + Object.keys(quotes).length + '/' + symbols.length + ' in ' + (Date.now() - t0) + 'ms' + (yahooLimited ? ' (rate limited, pausing 2 min)' : ''));
-  } else log('yahoo: paused after a 429, using nasdaq');
+    log('yahoo: ' + yahooFirst.filter(s => quotes[s]).length + '/' + yahooFirst.length + ' in ' + (Date.now() - t0) + 'ms' + (yahooLimited ? ' (rate limited, pausing 2 min)' : '') + (old ? ' (' + old + ' with prices over ' + STALE_DAYS + ' days old, dropped)' : ''));
+  } else if (yahooFirst.length) log('yahoo: paused after a 429, using nasdaq');
+  await moexDone;
+  // Moscow shares the exchange did not answer for: Yahoo once more (current prices only).
+  const moscowLeft = moscow.filter(s => !quotes[s]);
+  if (moscowLeft.length && !yahooLimited) {
+    await yahooBatch(moscowLeft.slice(0, BATCH), fetchImpl).then(got => { for (const [sym, v] of Object.entries(got || {})) take(sym, v, 'yahoo'); }, () => {});
+  }
 
   // Nasdaq covers US listings only: symbols without an exchange suffix such as ".PA".
   const rest = symbols.filter(s => !quotes[s] && !s.includes('.'));

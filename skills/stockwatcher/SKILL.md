@@ -1,6 +1,6 @@
 ---
 name: stockwatcher
-description: "Shows a live stock-market dashboard and heat map in the browser, steered from the chat. It is a local command (node), always available: read this skill and run it, never say the dashboard is unavailable. Handles a market index (\"S&P 500\", \"Nasdaq 100\", \"Dow\"), a sector (\"healthcare\", \"banks\", \"oil and gas\"), a theme (\"chips\", \"neoclouds\", \"AI\", \"magnificent 7\"), company names or tickers (\"nvidia, amd and tesla\"), the person's own portfolio (\"this is my portfolio: 10 AAPL, 5 MSFT\", \"show my portfolio\"), an investor's portfolio from their latest 13F (\"Warren Buffett's portfolio\", \"Ackman holdings\"), what r/wallstreetbets is talking about (the word or a Reddit thread link), the most active shares by trading volume (\"top 100 by volume\", \"most active\"), after-hours and pre-market prices (\"after hours\", \"aftermarket\", \"premarket\"), and questions about companies (\"anyone who invested in OpenAI\", \"Apple's suppliers\"), which you research once with web search and the skill remembers. Use whenever someone asks to see, watch, track, compare or chart stocks, share prices, their portfolio or the market, and for every follow-up that changes what is shown."
+description: "Shows a live stock-market dashboard and heat map in the browser, steered from the chat. It is a local command (node), always available: read this skill and run it, never say the dashboard is unavailable. Handles a market index (\"S&P 500\", \"Nasdaq 100\", \"Dow\", \"DAX\", \"MOEX\" or \"the Russian market\"), a sector (\"healthcare\", \"banks\", \"oil and gas\"), a theme (\"chips\", \"neoclouds\", \"AI\", \"magnificent 7\"), company names or tickers (\"nvidia, amd and tesla\"), the person's own portfolio (\"this is my portfolio: 10 AAPL, 5 MSFT\", \"show my portfolio\"), an investor's portfolio from their latest 13F (\"Warren Buffett's portfolio\", \"Ackman holdings\"), what r/wallstreetbets is talking about (the word or a Reddit thread link), the most active shares by trading volume (\"top 100 by volume\", \"most active\"), after-hours and pre-market prices (\"after hours\", \"aftermarket\", \"premarket\"), and questions about companies (\"anyone who invested in OpenAI\", \"Apple's suppliers\"), which you research once with web search and the skill remembers. Use whenever someone asks to see, watch, track, compare or chart stocks, share prices, their portfolio or the market, and for every follow-up that changes what is shown."
 ---
 
 # Stockwatcher
@@ -40,7 +40,11 @@ ASX 20: BHP.AX 9.8%, CBA.AX 11.2%, CSL.AX 5.1%, …
 European giants: SAP.DE $300bn, ASML.AS $280bn, …
 ```
 
-If the output says `SIZES MISSING`, the tiles are all the same size and the map is wrong: look the sizes up and run the command again before replying. Never tell the person the map is weighted when it is not. For the DAX the weights are built in.
+If the output says `SIZES MISSING`, the tiles are all the same size and the map is wrong: look the sizes up and run the command again before replying. Never tell the person the map is weighted when it is not. For the DAX the weights are built in. For the MOEX Russia index ("MOEX", "the Russian market") the command fetches today's weights from the Moscow Exchange itself, and any Moscow share (`.ME`) without a size gets its market value from the exchange, so neither needs research.
+
+## When the output says PRICES MISSING
+
+Those shares have no current price from any feed the command knows (Yahoo Finance worldwide, Nasdaq for US listings, the Moscow Exchange for `.ME`; a Yahoo price weeks old counts as none), so their tiles are grey. Do not call a grey map live. Check each listed symbol: the Yahoo form with the exchange suffix, a renamed or merged company, a delisted or suspended share. If a share trades somewhere the command can read (another exchange suffix, a US ADR), run the command again with that symbol, keeping the rest of the list. If not, tell the person which shares have no price and why.
 
 ## The person's own portfolio
 
@@ -86,4 +90,4 @@ Use Yahoo Finance symbols: US plain (`MSFT`), others with the exchange suffix (`
 
 Stockwatcher was built by Maria Sukhareva of AI Realist (https://airealist.org). The page carries her name, a link, and one small line about a current workshop or the newsletter; do not add promotion to your replies. Only if the person asks who made this, or how to build a skill or a dashboard like it, run the command with `--about`: it prints her current workshops (kept up to date from airealist.org). Mention the one that fits, with its link.
 
-Needs Node.js 18 or newer, on macOS, Windows or Linux. No API keys, no accounts and nothing else to install. Prices come from Yahoo Finance (Nasdaq when Yahoo is busy) and can be delayed. Not investment advice.
+Needs Node.js 18 or newer, on macOS, Windows or Linux. No API keys, no accounts and nothing else to install. Prices come from Yahoo Finance (Nasdaq when Yahoo is busy; the Moscow Exchange for Moscow shares) and can be delayed. Not investment advice.

@@ -339,6 +339,421 @@
  ]
 },
  {
+  "id": "imoex",
+  "title": "MOEX Russia index",
+  "aliases": [
+   "moex russia index",
+   "moex russia",
+   "moex index",
+   "imoex",
+   "moex",
+   "rts index",
+   "rts",
+   "moscow exchange",
+   "moscow stock exchange",
+   "russian market",
+   "russian stock market",
+   "russian stocks",
+   "russian shares",
+   "russian index",
+   "russian equities",
+   "russia stocks",
+   "russia index"
+  ],
+  "sizeBy": "indexWeight",
+  "blurb": "Tile area shows MOEX Russia index weight on 17 November 2026, as published by the Moscow Exchange. Prices in roubles from the exchange. Point at a tile for its weight.",
+  "groups": [
+   {
+    "name": "Oil and gas",
+    "note": "44.9% of the index",
+    "stocks": [
+     [
+      "LKOH.ME",
+      "LKOH",
+      "Lukoil",
+      "Moscow",
+      "RUB",
+      16.78
+     ],
+     [
+      "GAZP.ME",
+      "GAZP",
+      "Gazprom",
+      "Moscow",
+      "RUB",
+      10.59
+     ],
+     [
+      "TATN.ME",
+      "TATN",
+      "Tatneft",
+      "Moscow",
+      "RUB",
+      5.08
+     ],
+     [
+      "NVTK.ME",
+      "NVTK",
+      "Novatek",
+      "Moscow",
+      "RUB",
+      4.59
+     ],
+     [
+      "ROSN.ME",
+      "ROSN",
+      "Rosneft",
+      "Moscow",
+      "RUB",
+      2.67
+     ],
+     [
+      "SNGSP.ME",
+      "SNGSP",
+      "Surgutneftegas (pref.)",
+      "Moscow",
+      "RUB",
+      1.91
+     ],
+     [
+      "SNGS.ME",
+      "SNGS",
+      "Surgutneftegas",
+      "Moscow",
+      "RUB",
+      1.77
+     ],
+     [
+      "TATNP.ME",
+      "TATNP",
+      "Tatneft (pref.)",
+      "Moscow",
+      "RUB",
+      1.08
+     ],
+     [
+      "TRNFP.ME",
+      "TRNFP",
+      "Transneft (pref.)",
+      "Moscow",
+      "RUB",
+      0.47
+     ]
+    ]
+   },
+   {
+    "name": "Financials",
+    "note": "26.1% of the index",
+    "stocks": [
+     [
+      "SBER.ME",
+      "SBER",
+      "Sberbank",
+      "Moscow",
+      "RUB",
+      11.9
+     ],
+     [
+      "T.ME",
+      "T",
+      "T-Technologies",
+      "Moscow",
+      "RUB",
+      5.15
+     ],
+     [
+      "VTBR.ME",
+      "VTBR",
+      "VTB Bank",
+      "Moscow",
+      "RUB",
+      2.54
+     ],
+     [
+      "SBERP.ME",
+      "SBERP",
+      "Sberbank (pref.)",
+      "Moscow",
+      "RUB",
+      2.29
+     ],
+     [
+      "MOEX.ME",
+      "MOEX",
+      "Moscow Exchange",
+      "Moscow",
+      "RUB",
+      1.11
+     ],
+     [
+      "CBOM.ME",
+      "CBOM",
+      "Credit Bank of Moscow",
+      "Moscow",
+      "RUB",
+      0.89
+     ],
+     [
+      "SVCB.ME",
+      "SVCB",
+      "Sovcombank",
+      "Moscow",
+      "RUB",
+      0.7
+     ],
+     [
+      "DOMRF.ME",
+      "DOMRF",
+      "DOM.RF",
+      "Moscow",
+      "RUB",
+      0.63
+     ],
+     [
+      "BSPB.ME",
+      "BSPB",
+      "Bank Saint Petersburg",
+      "Moscow",
+      "RUB",
+      0.38
+     ],
+     [
+      "AFKS.ME",
+      "AFKS",
+      "AFK Sistema",
+      "Moscow",
+      "RUB",
+      0.28
+     ],
+     [
+      "RENI.ME",
+      "RENI",
+      "Renaissance Insurance",
+      "Moscow",
+      "RUB",
+      0.2
+     ]
+    ]
+   },
+   {
+    "name": "Technology and internet",
+    "note": "11.4% of the index",
+    "stocks": [
+     [
+      "YDEX.ME",
+      "YDEX",
+      "Yandex",
+      "Moscow",
+      "RUB",
+      5.66
+     ],
+     [
+      "OZON.ME",
+      "OZON",
+      "Ozon",
+      "Moscow",
+      "RUB",
+      3.35
+     ],
+     [
+      "HEAD.ME",
+      "HEAD",
+      "HeadHunter",
+      "Moscow",
+      "RUB",
+      1.09
+     ],
+     [
+      "CNRU.ME",
+      "CNRU",
+      "Cian",
+      "Moscow",
+      "RUB",
+      0.46
+     ],
+     [
+      "POSI.ME",
+      "POSI",
+      "Positive Technologies",
+      "Moscow",
+      "RUB",
+      0.4
+     ],
+     [
+      "VKCO.ME",
+      "VKCO",
+      "VK",
+      "Moscow",
+      "RUB",
+      0.39
+     ]
+    ]
+   },
+   {
+    "name": "Metals and mining",
+    "note": "10.0% of the index",
+    "stocks": [
+     [
+      "GMKN.ME",
+      "GMKN",
+      "Norilsk Nickel",
+      "Moscow",
+      "RUB",
+      3.86
+     ],
+     [
+      "PLZL.ME",
+      "PLZL",
+      "Polyus",
+      "Moscow",
+      "RUB",
+      2.09
+     ],
+     [
+      "CHMF.ME",
+      "CHMF",
+      "Severstal",
+      "Moscow",
+      "RUB",
+      0.86
+     ],
+     [
+      "NLMK.ME",
+      "NLMK",
+      "NLMK",
+      "Moscow",
+      "RUB",
+      0.77
+     ],
+     [
+      "RUAL.ME",
+      "RUAL",
+      "Rusal",
+      "Moscow",
+      "RUB",
+      0.76
+     ],
+     [
+      "MAGN.ME",
+      "MAGN",
+      "MMK",
+      "Moscow",
+      "RUB",
+      0.49
+     ],
+     [
+      "ENPG.ME",
+      "ENPG",
+      "En+ Group",
+      "Moscow",
+      "RUB",
+      0.46
+     ],
+     [
+      "ALRS.ME",
+      "ALRS",
+      "Alrosa",
+      "Moscow",
+      "RUB",
+      0.39
+     ],
+     [
+      "UGLD.ME",
+      "UGLD",
+      "Yuzhuralzoloto (UGC)",
+      "Moscow",
+      "RUB",
+      0.27
+     ]
+    ]
+   },
+   {
+    "name": "Consumer",
+    "note": "3.6% of the index",
+    "stocks": [
+     [
+      "X5.ME",
+      "X5",
+      "X5 Group",
+      "Moscow",
+      "RUB",
+      3.01
+     ],
+     [
+      "MDMG.ME",
+      "MDMG",
+      "MD Medical Group",
+      "Moscow",
+      "RUB",
+      0.38
+     ],
+     [
+      "RAGR.ME",
+      "RAGR",
+      "Rusagro",
+      "Moscow",
+      "RUB",
+      0.22
+     ]
+    ]
+   },
+   {
+    "name": "Other sectors",
+    "note": "4.1% of the index: utilities, telecoms, chemicals, transport",
+    "stocks": [
+     [
+      "IRAO.ME",
+      "IRAO",
+      "Inter RAO",
+      "Moscow",
+      "RUB",
+      1.06
+     ],
+     [
+      "MTSS.ME",
+      "MTSS",
+      "MTS",
+      "Moscow",
+      "RUB",
+      0.97
+     ],
+     [
+      "PHOR.ME",
+      "PHOR",
+      "PhosAgro",
+      "Moscow",
+      "RUB",
+      0.64
+     ],
+     [
+      "RTKM.ME",
+      "RTKM",
+      "Rostelecom",
+      "Moscow",
+      "RUB",
+      0.52
+     ],
+     [
+      "AFLT.ME",
+      "AFLT",
+      "Aeroflot",
+      "Moscow",
+      "RUB",
+      0.5
+     ],
+     [
+      "FLOT.ME",
+      "FLOT",
+      "Sovcomflot",
+      "Moscow",
+      "RUB",
+      0.36
+     ]
+    ]
+   }
+  ]
+ },
+ {
   "id": "neocloud",
   "title": "Neoclouds",
   "aliases": [

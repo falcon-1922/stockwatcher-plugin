@@ -582,7 +582,7 @@ td.spark svg{width:90px;height:20px}
       if (!rows.length && part.sizeBy !== 'indexWeight') return;
       nav += '<a href="#' + esc(part.id) + '">' + esc(part.title) + '</a>';
       html += '<section class="wrap part" id="' + esc(part.id) + '" aria-labelledby="h-' + esc(part.id) + '">' +
-        '<div class="part-head"><div><p class="eyebrow">' + (part.sizeBy === 'indexWeight' ? part.groups[0].stocks.length : rows.length) + ' listed shares</p><h2 id="h-' + esc(part.id) + '">' + esc(part.title) + '</h2></div><p>' + esc(part.blurb || '') + '</p></div>' +
+        '<div class="part-head"><div><p class="eyebrow">' + (part.sizeBy === 'indexWeight' ? part.groups.reduce(function (a, g) { return a + g.stocks.length; }, 0) : rows.length) + ' listed shares</p><h2 id="h-' + esc(part.id) + '">' + esc(part.title) + '</h2></div><p>' + esc(part.blurb || '') + '</p></div>' +
         (rows.length ? stats(rows, part) : '') + (part.sizeBy === 'indexWeight' || rows.length > 1 ? heat(part, rows) : '') +
         // The share table is open by default; a long one can be folded away and stays folded.
         (rows.length > 80 ? '<details class="all-rows"' + (state.open[part.id] === false ? '' : ' open') + ' data-part="' + esc(part.id) + '"><summary>All ' + rows.length + ' shares (click to fold)</summary>' + table(part, groups) + '</details>' : table(part, groups)) +

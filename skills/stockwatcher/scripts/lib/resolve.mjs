@@ -215,6 +215,7 @@ const SUFFIX = {
   KS: ['Korea', 'KRW'], KQ: ['Kosdaq', 'KRW'], TW: ['Taiwan', 'TWD'], TWO: ['Taipei OTC', 'TWD'], SS: ['Shanghai', 'CNY'],
   SZ: ['Shenzhen', 'CNY'], NS: ['NSE India', 'INR'], BO: ['BSE India', 'INR'], TO: ['Toronto', 'CAD'], V: ['TSX Venture', 'CAD'],
   AX: ['ASX', 'AUD'], SA: ['B3', 'BRL'], MX: ['Mexico', 'MXN'], SI: ['Singapore', 'SGD'], TA: ['Tel Aviv', 'ILS'],
+  ME: ['Moscow', 'RUB'],
 };
 
 // "OpenAI investors: MSFT, NVDA, 9984.T" names the list of picks.

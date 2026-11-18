@@ -60,6 +60,18 @@ export function missingSizes(sections) {
   return out;
 }
 
+// Shares no feed has a current price for are drawn grey. The chat is told which, so it can
+// check the symbols and say so instead of presenting a grey map as live.
+export function missingPrices(sections, p) {
+  if (!p || !p.missing || !p.missing.length) return [];
+  const all = symbolsOf(sections), gone = p.missing.filter(s => all.includes(s));
+  if (!gone.length) return [];
+  return ['PRICES MISSING: no current price for ' + gone.length + ' of ' + all.length + ' shares (' + gone.slice(0, 10).join(', ') + (gone.length > 10 ? ', …' : '') + '), so their tiles are grey.'
+    + ' The feeds tried: Yahoo Finance worldwide, Nasdaq for US listings, the Moscow Exchange for ".ME" listings; a Yahoo price weeks old counts as none.'
+    + ' Check each symbol: the Yahoo form with the exchange suffix (SAP.DE, 7203.T), a renamed or merged company, or a share that is delisted or suspended.'
+    + ' If a share has a current listing elsewhere (another exchange suffix, its US ADR), run the command again with that symbol; otherwise tell the person which shares have no price and why.'];
+}
+
 export function summarise(sections, unmatched, research, notes = []) {
   return {
     sections: sections.map(s => ({ id: s.id, title: s.title, count: s.groups.reduce((a, g) => a + g.stocks.length, 0), groups: s.groups.map(g => g.name), ...(s.sizeBy === 'held' ? { about: s.blurb } : {}) })),
@@ -75,7 +87,9 @@ export function summarise(sections, unmatched, research, notes = []) {
 // `memory` (optional): research memory, saved portfolios and usual requests, see memory.mjs.
 // `promo` (optional): the maker's one-line pointers, see promo.mjs.
 // `active` (optional): most active shares and extended-hours prices, see active.mjs.
-export function createServer({ pagePath, index, themes, prices = createPriceCache(), social = null, portfolios = null, memory = null, promo = null, active = null, viewsFile = null, budgetMs = 1200, log = () => {}, onStop = () => {}, onActivity = () => {} }) {
+// `moex` (optional): the Moscow Exchange's index weights and market values, see moex.mjs.
+// `themesAt` (optional): changes when a theme was updated in place (the index's daily weights).
+export function createServer({ pagePath, index, themes, prices = createPriceCache(), social = null, portfolios = null, memory = null, promo = null, active = null, moex = null, themesAt = () => 0, viewsFile = null, budgetMs = 1200, log = () => {}, onStop = () => {}, onActivity = () => {} }) {
   const resolved = new Map(); // query → { at, result }   (the index changes once a day at most)
   const vocab = vocabulary(themes);
   const views = new Map([['main', { q: '', at: 0 }]]);   // window name → its current view
@@ -90,10 +104,10 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
 
   function local(q) {
     const key = q.trim().toLowerCase();
-    const hit = resolved.get(key);
-    if (hit && hit.at === index.at()) return hit.result;
+    const hit = resolved.get(key), at = index.at() + ':' + themesAt();
+    if (hit && hit.at === at) return hit.result;
     const result = resolve(q, index.rows(), themes);
-    resolved.set(key, { at: index.at(), result });
+    resolved.set(key, { at, result });
     if (resolved.size > 200) resolved.delete(resolved.keys().next().value);
     return result;
   }
@@ -205,6 +219,8 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
     const stillQuestions = mem.left.filter(x => questions.includes(x));
     const ids = new Set();
     const all = [...sections, ...found.sections, ...mem.sections].filter(s => !ids.has(s.id) && ids.add(s.id));   // a list and its remembered copy are one
+    // Moscow shares that came without a size get their market value from the exchange.
+    if (moex) await moex.enrich(all).catch(e => log('moex sizes failed: ' + e.message));
     return { sections: all, unmatched: mem.left.filter(x => !questions.includes(x)), research: stillQuestions, notes: [...notes, ...mem.notes], session };
   }
 
@@ -300,7 +316,9 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
           const learned = learn(w, q, url.searchParams.get('how') || '', url.searchParams.getAll('src').filter(Boolean));
           const { sections, unmatched, research, notes } = await lookup(q, { save: true });
           const symbols = symbolsOf(sections);
-          if (symbols.length) prices.refresh(symbols); // warm up before the page asks
+          // Warm up before the page asks, and say which shares no feed has a price for (only
+          // those whose feeds have answered: the rest are still loading, not missing).
+          if (symbols.length) notes.push(...missingPrices(sections, await prices.get(symbols, budgetMs)));
           if (isTitledList(q)) notes.push(...missingSizes(sections));
           views.set(w, { q, at: Date.now() });
           saveViews();
