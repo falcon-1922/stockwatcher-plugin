@@ -23,7 +23,7 @@ export function dataDir(env = process.env, platform = process.platform) {
 export const DEFAULT_PORT = 4317;
 
 // One number for the command, the server and the page. Keep .claude-plugin/plugin.json in step.
-export const VERSION = '3.9.4';
+export const VERSION = '3.10.0';
 
 // "3.10.0" is newer than "3.9.2": compared number by number.
 export function isNewer(a, b) {
