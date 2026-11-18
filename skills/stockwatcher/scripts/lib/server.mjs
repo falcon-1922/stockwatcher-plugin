@@ -28,8 +28,17 @@ import { ABOUT } from './promo.mjs';
 import { createPriceCache } from './pricecache.mjs';
 import { splitResearch } from './research.mjs';
 import { isSocial } from './social.mjs';
+import { isActive, isExtended, stripMarketWords, sessionAt } from './active.mjs';
 
 export { VERSION };
+
+const SESSION_NOTE = {
+  after: 'After-hours prices: the "Today" colours show the move from the 4 pm close to the latest after-hours trade (Nasdaq; after-hours trading runs 16:00–20:00 New York time).',
+  pre: 'Pre-market prices: the "Today" colours show the move from the last close to the latest pre-market trade (Nasdaq; pre-market trading runs 4:00–9:30 New York time).',
+  regular: 'The regular session is open now (9:30–16:00 New York time), so these are regular prices; after-hours trading starts at 16:00.',
+  closed: 'Trading is closed now; the "Today" colours show the last extended-hours trade against the last regular close (Nasdaq).',
+};
+const SESSION_WORD = { after: 'after hours', pre: 'pre-market', closed: 'outside regular hours' };
 
 export function summarise(sections, unmatched, research, notes = []) {
   return {
@@ -45,7 +54,8 @@ export function summarise(sections, unmatched, research, notes = []) {
 // link (http://127.0.0.1:4317/?w=w2) still shows it after a restart.
 // `memory` (optional): research memory, saved portfolios and usual requests, see memory.mjs.
 // `promo` (optional): the maker's one-line pointers, see promo.mjs.
-export function createServer({ pagePath, index, themes, prices = createPriceCache(), social = null, portfolios = null, memory = null, promo = null, viewsFile = null, budgetMs = 1200, log = () => {}, onStop = () => {}, onActivity = () => {} }) {
+// `active` (optional): most active shares and extended-hours prices, see active.mjs.
+export function createServer({ pagePath, index, themes, prices = createPriceCache(), social = null, portfolios = null, memory = null, promo = null, active = null, viewsFile = null, budgetMs = 1200, log = () => {}, onStop = () => {}, onActivity = () => {} }) {
   const resolved = new Map(); // query → { at, result }   (the index changes once a day at most)
   const vocab = vocabulary(themes);
   const views = new Map([['main', { q: '', at: 0 }]]);   // window name → its current view
@@ -155,12 +165,25 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
         if (s.note) notes.push(s.note);
       } catch (e) { notes.push('The r/wallstreetbets mention counts are unavailable right now (' + e.message + ').'); }
     }
+    // "top 100 by trading volume", "most active", "after hours", "pre-market". "After hours" on
+    // its own shows the most active shares; with other words ("nvidia after hours") those.
+    let session = null;
+    if (active && rest && (isActive(rest) || isExtended(rest))) {
+      const wantList = isActive(rest), said = rest;
+      if (isExtended(rest)) session = sessionAt();
+      rest = stripMarketWords(rest);
+      if (wantList || (!rest && !sections.length)) {
+        try { const s = await active.section(said, index.rows()); if (s) sections.push(s); }
+        catch (e) { notes.push('Today’s trading volumes are unavailable right now (' + e.message + ').'); }
+      }
+      if (session) notes.push(SESSION_NOTE[session]);
+    }
     const { localText, questions } = rest ? splitResearch(rest, local) : { localText: '', questions: [] };
     const found = localText ? local(localText) : { sections: [], unmatched: [] };
     // Questions (and unknown words) answered before are taken from memory instead of research.
     const mem = fromMemory([...questions, ...found.unmatched, ...extraUnmatched], refresh);
     const stillQuestions = mem.left.filter(x => questions.includes(x));
-    return { sections: [...sections, ...found.sections, ...mem.sections], unmatched: mem.left.filter(x => !questions.includes(x)), research: stillQuestions, notes: [...notes, ...mem.notes] };
+    return { sections: [...sections, ...found.sections, ...mem.sections], unmatched: mem.left.filter(x => !questions.includes(x)), research: stillQuestions, notes: [...notes, ...mem.notes], session };
   }
 
   // Self-learning: the questions a window is waiting on, and the named lists that answer them
@@ -189,18 +212,30 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
   }
 
   async function dashboard(q) {
-    const { sections, unmatched, research, notes } = await lookup(q);
+    const { sections, unmatched, research, notes, session } = await lookup(q);
     const symbols = symbolsOf(sections);
-    const p = symbols.length ? await prices.get(symbols, budgetMs) : { quotes: {}, source: {}, stale: [], pending: [], missing: [] };
+    const outside = session && session !== 'regular' && active;
+    const [p, ext] = await Promise.all([
+      symbols.length ? prices.get(symbols, budgetMs) : { quotes: {}, source: {}, stale: [], pending: [], missing: [] },
+      outside && symbols.length ? active.extended(symbols).catch(() => ({})) : {},
+    ]);
     const caps = {};
     for (const s of sections) for (const g of s.groups) for (const st of g.stocks) if (st.cap) caps[st.y] = st.cap;
     const quotes = {};
-    for (const [sym, v] of Object.entries(p.quotes)) quotes[sym] = caps[sym] ? { ...v, cap: caps[sym] } : v;
+    for (const [sym, v] of Object.entries(p.quotes)) {
+      let qt = caps[sym] ? { ...v, cap: caps[sym] } : v;
+      // Outside regular hours "today" is the move from the last regular close to the latest
+      // extended-hours trade.
+      const e = ext[sym];
+      if (e && qt.p) qt = { ...qt, close: qt.p, p: e.p, d: +(e.p / qt.p - 1).toFixed(5), xt: e.at };
+      quotes[sym] = qt;
+    }
     return {
       query: q, updated: Date.now(),
       source: !symbols.length || Object.keys(quotes).length ? (p.stale.length ? 'stale' : 'live') : (p.pending.length ? 'loading' : 'none'),
       feeds: [...new Set(Object.values(p.source))], universe: sections, quotes,
       pending: p.pending, stale: p.stale.length, missing: p.missing, unmatched, research, notes, usual: usual(),
+      ...(outside ? { session: SESSION_WORD[session], extended: Object.keys(ext).length } : {}),
     };
   }
 

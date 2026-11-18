@@ -1,6 +1,6 @@
 # Stockwatcher startup, smoke test, and shutdown
 
-Use the base directory shown when this skill loads. Use the same skill installation throughout.
+The scripts are in the `scripts` folder next to SKILL.md (`skills/stockwatcher/scripts/`). Use the same skill installation throughout.
 
 ## Startup failure
 
@@ -23,7 +23,7 @@ Use the base directory shown when this skill loads. Use the same skill installat
 Run this for startup diagnosis or after changing launch or dashboard code.
 
 ```bash
-node "<base directory>/scripts/smoke-test.mjs"
+node "<folder of SKILL.md>/scripts/smoke-test.mjs"
 ```
 
 A pass confirms the launcher can start a server on loopback, serve the dashboard, resolve `real estate stocks` from the bundled index, and shut down its test server. It uses a temporary port and temporary cache and data folders, disables browser launch and external quote calls, and leaves the person's saved state alone. Run the actual query afterward for a live dashboard.

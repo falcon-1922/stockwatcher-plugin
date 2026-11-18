@@ -86,6 +86,16 @@ function hint(vocab) {
     + vocab.themes.map(t => t.say).join(', ') + '), company names and tickers.';
 }
 
+// A sandbox (Codex, some IDE agents) that forbids a local server also forbids reaching one and
+// fetching prices. Say so plainly, in words an agent acts on, instead of failing later.
+const blocked = await new Promise(r => { const s = netServer().once('error', e => r(e.code === 'EPERM' || e.code === 'EACCES' ? e.code : null)).once('listening', () => s.close(() => r(null))); s.listen(0, '127.0.0.1'); });
+if (blocked) {
+  console.log('BLOCKED BY THE SANDBOX (' + blocked + '): Stockwatcher must run a small web server on this computer (127.0.0.1) and fetch prices from the internet, and this sandbox allows neither.');
+  console.log('Run exactly the same command again outside the sandbox: in Codex, request escalated permissions (sandbox_permissions "require_escalated", justification "Stockwatcher runs a local dashboard and fetches stock prices"). If the person is asked to approve, suggest approving it for future runs too.');
+  console.log('Do not look for another script or another way: nothing is broken, only the sandbox is in the way.');
+  process.exit(2);
+}
+
 if (stop) {
   let stopped = 0;
   for (let port = firstPort; port < firstPort + 10; port++) if (await health(port)) { await getJson('http://127.0.0.1:' + port + '/api/stop').catch(() => {}); stopped++; }
@@ -96,6 +106,7 @@ if (stop) {
 const port = await ensureServer();
 if (!port) {
   console.log('Stockwatcher could not start its local server. Log: ' + join(home, 'server.log'));
+  console.log('Run the same command once more. If it fails again, run: ' + self + ' --stop   and then the command again. If that fails too, tell the person and show the last lines of the log.');
   process.exit(1);
 }
 const base = 'http://127.0.0.1:' + port;

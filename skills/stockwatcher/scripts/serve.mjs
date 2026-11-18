@@ -13,6 +13,7 @@ import { createSocial } from './lib/social.mjs';
 import { createPortfolios } from './lib/portfolio.mjs';
 import { createMemory } from './lib/memory.mjs';
 import { createPromo } from './lib/promo.mjs';
+import { createActive } from './lib/active.mjs';
 import { homeDir, dataDir, DEFAULT_PORT } from './lib/home.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -49,6 +50,7 @@ const server = createServer({
   promo: createPromo({ fetchImpl, log, file: join(home, 'promo.json'), bundledPath: join(root, 'data', 'promo.json'), offline: process.env.STOCKWATCHER_OFFLINE === '1' }),
   social: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createSocial({ fetchImpl, log }),
   portfolios: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createPortfolios({ fetchImpl, log, file: join(home, 'portfolios.json') }),
+  active: process.env.STOCKWATCHER_OFFLINE === '1' ? null : createActive({ fetchImpl, log }),
   onActivity: touch,
   onStop: () => quit('stop requested'),
 });

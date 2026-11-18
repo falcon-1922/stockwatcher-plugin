@@ -35,7 +35,7 @@ The same plugin works in Claude Code and in Codex.
 
 ```bash
 codex plugin marketplace add ktoetotam/stockwatcher-plugin
-codex plugin add stockwatcher@stockwatcher
+codex plugin add stockwatcher@airealist
 ```
 
 In the Codex or ChatGPT desktop app you can instead add the marketplace with the first

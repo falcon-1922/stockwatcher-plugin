@@ -1,5 +1,5 @@
 {
-  "name": "stockwatcher",
+  "name": "airealist",
   "interface": { "displayName": "Stockwatcher by AI Realist" },
   "plugins": [
     {
