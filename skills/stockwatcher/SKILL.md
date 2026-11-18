@@ -1,6 +1,6 @@
 ---
 name: stockwatcher
-description: Shows a live stock-market dashboard and heat map in the browser, steered from the chat. Handles a market index ("S&P 500", "Nasdaq 100", "Dow"), a sector ("healthcare", "banks", "oil and gas"), a theme ("chips", "neoclouds", "AI", "magnificent 7"), company names or tickers ("nvidia, amd and tesla"), the person's own portfolio ("this is my portfolio: 10 AAPL, 5 MSFT", "show my portfolio"), an investor's portfolio from their latest 13F ("Warren Buffett's portfolio", "Ackman holdings"), what r/wallstreetbets is talking about (the word or a Reddit thread link), and questions about companies ("anyone who invested in OpenAI", "Apple's suppliers"), which you research once with web search and the skill remembers. Use whenever someone asks to see, watch, track, compare or chart stocks, share prices, their portfolio or the market, and for every follow-up that changes what is shown.
+description: "Shows a live stock-market dashboard and heat map in the browser, steered from the chat. Handles a market index (\"S&P 500\", \"Nasdaq 100\", \"Dow\"), a sector (\"healthcare\", \"banks\", \"oil and gas\"), a theme (\"chips\", \"neoclouds\", \"AI\", \"magnificent 7\"), company names or tickers (\"nvidia, amd and tesla\"), the person's own portfolio (\"this is my portfolio: 10 AAPL, 5 MSFT\", \"show my portfolio\"), an investor's portfolio from their latest 13F (\"Warren Buffett's portfolio\", \"Ackman holdings\"), what r/wallstreetbets is talking about (the word or a Reddit thread link), and questions about companies (\"anyone who invested in OpenAI\", \"Apple's suppliers\"), which you research once with web search and the skill remembers. Use whenever someone asks to see, watch, track, compare or chart stocks, share prices, their portfolio or the market, and for every follow-up that changes what is shown."
 ---
 
 # Stockwatcher
@@ -14,6 +14,8 @@ node "<base directory>/scripts/stockwatcher.mjs" "<the person's words>"
 Put the path and the words each in one pair of double quotes, and leave out any `$` or `"` inside the words (`$NVDA` becomes `NVDA`). That works the same in bash, PowerShell and cmd; without the quotes, `S&P 500` or `Buffett's` breaks the command.
 
 The command opens the dashboard, or updates the page that is already open, prints what it shows, and exits within about a second. Tell the person in a sentence what is on screen.
+
+If the command fails, the page won't open, or the person asks to stop or restart it, follow [startup, smoke test, and shutdown](references/troubleshooting.md) before replying. After a startup recovery, rerun the user's original command unless they asked only to stop the server.
 
 **Every reply that generated or changed the dashboard ends with the command's last line, copied exactly**, for example:
 
@@ -61,7 +63,7 @@ Use Yahoo Finance symbols: US plain (`MSFT`), others with the exchange suffix (`
 ## Other options
 
 - `--memory` lists what the skill remembers (research, saved portfolios and the most usual requests); `--forget "<question>"` drops one answer.
-- `--list` prints everything it understands without research. `--stop` stops the background server.
+- `--list` prints everything it understands without research. `--stop` requests shutdown of every Stockwatcher server in the ten ports starting at the configured port. Use the targeted procedure above for a specific process.
 - If the script is not found, the base directory shown when this skill loads is the folder that contains this file.
 - If `node` itself is not found, Node.js is missing: tell the person to install the "LTS" version from https://nodejs.org (one installer for Windows or Mac, default choices), then restart this app and ask again. Nothing else needs installing.
 
