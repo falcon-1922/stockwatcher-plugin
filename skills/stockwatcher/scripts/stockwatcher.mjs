@@ -54,6 +54,14 @@ function startServer(port) {
 
 // Finds our server on one of ten ports, or starts it on the first free one.
 async function ensureServer() {
+  const found = [];
+  for (let port = firstPort; port < firstPort + 10; port++) {
+    const h = await health(port);
+    if (h && h.version === VERSION) return port;
+    if (h) found.push(port);
+  }
+  const blocked = await bindBlocked();
+  if (blocked) { if (found.length) return found[0]; sandboxed(blocked); }   // another version: still shows the request
   for (let port = firstPort; port < firstPort + 10; port++) {
     const h = await health(port);
     if (h && h.version === VERSION) return port;
@@ -86,13 +94,14 @@ function hint(vocab) {
     + vocab.themes.map(t => t.say).join(', ') + '), company names and tickers.';
 }
 
-// A sandbox (Codex, some IDE agents) that forbids a local server also forbids reaching one and
-// fetching prices. Say so plainly, in words an agent acts on, instead of failing later.
-const blocked = await new Promise(r => { const s = netServer().once('error', e => r(e.code === 'EPERM' || e.code === 'EACCES' ? e.code : null)).once('listening', () => s.close(() => r(null))); s.listen(0, '127.0.0.1'); });
-if (blocked) {
-  console.log('BLOCKED BY THE SANDBOX (' + blocked + '): Stockwatcher must run a small web server on this computer (127.0.0.1) and fetch prices from the internet, and this sandbox allows neither.');
+// A sandbox (Codex, some IDE agents) may forbid starting a server while still allowing a visit
+// to one that is running. So a running server is used whatever its version, and only when a new
+// one must be started is the sandbox reported, in words an agent acts on.
+const bindBlocked = () => new Promise(r => { const s = netServer().once('error', e => r(e.code === 'EPERM' || e.code === 'EACCES' ? e.code : null)).once('listening', () => s.close(() => r(null))); s.listen(0, '127.0.0.1'); });
+function sandboxed(code) {
+  console.log('BLOCKED BY THE SANDBOX (' + code + '): Stockwatcher must start a small web server on this computer (127.0.0.1) and fetch prices from the internet, and this sandbox allows neither.');
   console.log('Run exactly the same command again outside the sandbox: in Codex, request escalated permissions (sandbox_permissions "require_escalated", justification "Stockwatcher runs a local dashboard and fetches stock prices"). If the person is asked to approve, suggest approving it for future runs too.');
-  console.log('Do not look for another script or another way: nothing is broken, only the sandbox is in the way.');
+  console.log('Do not run the smoke test or look for another script: nothing is broken, only the sandbox is in the way. If escalation is not possible here, tell the person to run this once in a terminal, then ask again: ' + self + ' "' + query.replace(/"/g, '') + '"');
   process.exit(2);
 }
 

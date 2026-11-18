@@ -4,6 +4,8 @@ The scripts are in the `scripts` folder next to SKILL.md (`skills/stockwatcher/s
 
 ## Startup failure
 
+If the output starts with `BLOCKED BY THE SANDBOX`, skip everything below: rerun the same command with escalated permissions, as the output says.
+
 1. Check `node --version` (18 or newer). Use the actual port printed by Stockwatcher. With no port in the output, the launcher starts at 4317 by default (overridden by `--port` or `STOCKWATCHER_PORT`) and checks ten consecutive ports. The following macOS commands use the defaults. Replace the port and range as needed.
 
    ```bash
