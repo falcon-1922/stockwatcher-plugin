@@ -380,10 +380,18 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
         // The live quote is the price and today's move; the longer periods are carried over
         // from the daily closes (the same base, today's price).
         const r = qt && qt.p > 0 ? L.p / qt.p : null, mv = x => (x == null || r == null ? null : +((1 + x) * r - 1).toFixed(5));
-        qt = { ...(qt || { s: [], hi: L.p, lo: L.p }), p: L.p, d: L.d != null ? +L.d.toFixed(5) : (L.prev ? +(L.p / L.prev - 1).toFixed(5) : (qt ? qt.d : null)),
+        // Today's move from the last daily close before this session, as exchanges and other
+        // vendors count it: Yahoo's own change field disagreed with its closes (LINK on
+        // 17 Nov 2026: closes 2.785 → 2.80 = +0.54%, the field said −0.36%).
+        const prevClose = closeOn(p.history && p.history[sym], Math.floor((L.at || Date.now() / 1000) / 86400) - 1);
+        const d = prevClose > 0 ? L.p / prevClose - 1 : L.d != null ? L.d : L.prev ? L.p / L.prev - 1 : qt ? qt.d : null;
+        qt = { ...(qt || { s: [], hi: L.p, lo: L.p }), p: L.p, d: d == null ? null : +d.toFixed(5),
           m: qt ? mv(qt.m) : null, y: qt ? mv(qt.y) : null, a: qt ? mv(qt.a) : null, t: L.at || (qt && qt.t), live: 1 };
         if (qt.hi != null && L.p > qt.hi) qt.hi = L.p;
         if (qt.lo != null && L.p < qt.lo) qt.lo = L.p;
+        // Yahoo's value for every share: all share classes (and partnership units) at today's
+        // price. The stock list's values went stale where it had no price to carry them forward
+        // with (Accenture $160bn against $141.4bn at Yahoo and CNBC on 17 Nov 2026).
         if (L.cap && sized.has(sym)) caps[sym] = L.cap;
       }
       if (!qt) continue;

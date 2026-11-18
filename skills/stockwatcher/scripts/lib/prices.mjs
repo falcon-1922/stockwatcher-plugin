@@ -57,7 +57,7 @@ export function series(timestamps, closes) {
     const v = closes[i];
     if (v == null || !isFinite(v)) continue;
     t.push(Math.floor(timestamps[i] / DAY));
-    c.push(round(v, v >= 1 ? 2 : 4));
+    c.push(round(v, 4));   // 2 decimals turned LINK's 2.785 into 2.79 and today's +0.54% into +0.36%
   }
   return { t, c };
 }
@@ -179,7 +179,10 @@ export async function fetchPrices(symbols, { fetchImpl = fetch, now = Date.now()
   const moscow = symbols.filter(isMoex);
   const moexDone = moscow.length ? (async () => {
     const t0 = Date.now();
-    const got = await pool(moscow, 6, s => moexHistory(s, fetchImpl, now).then(v => { take(s, v, 'moex'); return v; }));
+    // One more try after a second: one of 44 requests failing with "fetch failed" left Tatneft
+    // grey (18 Nov 2026) while the exchange had its price.
+    const once = s => moexHistory(s, fetchImpl, now).catch(() => new Promise(r => setTimeout(r, 1000)).then(() => moexHistory(s, fetchImpl, now)));
+    const got = await pool(moscow, 6, s => once(s).then(v => { take(s, v, 'moex'); return v; }));
     log('moex: ' + moscow.filter(s => quotes[s]).length + '/' + moscow.length + ' in ' + (Date.now() - t0) + 'ms'
       + (got.some(r => !r.ok) ? ' (' + got.filter(r => !r.ok).length + ' failed: ' + got.find(r => !r.ok).error.message + ')' : ''));
   })() : Promise.resolve();
