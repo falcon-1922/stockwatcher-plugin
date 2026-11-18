@@ -15,7 +15,7 @@ The script is in the `scripts` folder **next to this SKILL.md file**: if this fi
 
 **Codex: always run this command outside the sandbox** (request escalated permissions, `sandbox_permissions: "require_escalated"`), from the first try. It starts a small web server on this computer and fetches prices from the internet, which the sandbox blocks. If the output starts with `BLOCKED BY THE SANDBOX`, run the identical command again with escalated permissions; nothing else is wrong.
 
-Put the path and the words each in one pair of double quotes, and leave out any `$` or `"` inside the words (`$NVDA` becomes `NVDA`). That works the same in bash, PowerShell and cmd; without the quotes, `S&P 500` or `Buffett's` breaks the command.
+Put the path and the words each in one pair of double quotes, and leave out any `$`, `` ` ``, `\` or `"` inside the words (`$NVDA` becomes `NVDA`): a shell still runs what follows `$` or between backticks inside double quotes, so a request could otherwise run a command on this computer. That works the same in bash, PowerShell and cmd; without the quotes, `S&P 500` or `Buffett's` breaks the command.
 
 The command opens the dashboard, or updates the page that is already open, prints what it shows, and exits within about a second. Tell the person in a sentence what is on screen.
 

@@ -440,13 +440,24 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
     res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
   };
 
-  // Only this computer's own pages and the command may use the server. A website open in the
-  // browser cannot: not under another name pointed at 127.0.0.1 (the Host check), and not by
-  // calling the API from its own page (browsers mark such requests "cross-site"). This keeps a
-  // saved portfolio private and stops other pages changing the view.
+  // Only this server's own page and the command may use the API. A website open in the browser
+  // cannot: not under another name pointed at 127.0.0.1 (the Host check), and not by calling the
+  // API from its own page. "Not cross-site" is not enough: a page from another port on this
+  // computer counts as same-site, so only same-origin requests (same name and port) and callers
+  // that are not web pages (the command sends no Sec-Fetch-Site or Origin) get through. Origin
+  // covers browsers that do not send Sec-Fetch-Site. This keeps a saved portfolio private and
+  // stops other pages changing the view or stopping the server.
   const LOCAL = new Set(['127.0.0.1', 'localhost', '[::1]']);
-  const allowed = (req, path) => LOCAL.has(String(req.headers.host || '').replace(/:\d+$/, ''))
-    && !(path.startsWith('/api/') && req.headers['sec-fetch-site'] === 'cross-site');
+  const OWN_PAGE = new Set(['same-origin', 'none']);
+  const allowed = (req, path) => {
+    const host = String(req.headers.host || '');
+    if (!LOCAL.has(host.replace(/:\d+$/, ''))) return false;
+    if (!path.startsWith('/api/')) return true;                  // the page itself: a link from the chat
+    const site = req.headers['sec-fetch-site'], origin = req.headers.origin;
+    if (site !== undefined && !OWN_PAGE.has(site)) return false;
+    if (origin !== undefined && origin !== 'http://' + host) return false;
+    return true;
+  };
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');

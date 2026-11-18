@@ -15,7 +15,7 @@ import { openSync, mkdirSync } from 'node:fs';
 import { createServer as netServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { homeDir, DEFAULT_PORT, VERSION, browserCommand, isNewer } from './lib/home.mjs';
+import { homeDir, DEFAULT_PORT, VERSION, browserCommand, isNewer, shellSafe } from './lib/home.mjs';
 import { withAdded } from './lib/server.mjs';
 
 const args = process.argv.slice(2);
@@ -107,7 +107,7 @@ const bindBlocked = () => new Promise(r => { const s = netServer().once('error',
 function sandboxed(code) {
   console.log('BLOCKED BY THE SANDBOX (' + code + '): Stockwatcher must start a small web server on this computer (127.0.0.1) and fetch prices from the internet, and this sandbox allows neither.');
   console.log('Run exactly the same command again outside the sandbox: in Codex, request escalated permissions (sandbox_permissions "require_escalated", justification "Stockwatcher runs a local dashboard and fetches stock prices"). If the person is asked to approve, suggest approving it for future runs too.');
-  console.log('Do not run the smoke test or look for another script: nothing is broken, only the sandbox is in the way. If escalation is not possible here, tell the person to run this once in a terminal, then ask again: ' + self + ' "' + query.replace(/"/g, '') + '"');
+  console.log('Do not run the smoke test or look for another script: nothing is broken, only the sandbox is in the way. If escalation is not possible here, tell the person to run this once in a terminal, then ask again: ' + self + ' "' + shellSafe(query) + '"');
   process.exit(2);
 }
 
@@ -233,7 +233,7 @@ if (todo.length) {
   lines.push('2. Run the command again with one named list per question: "<short title>: <tickers>", lists separated by ";". Use Yahoo symbols (non-US with the exchange suffix, e.g. 9984.T, SAP.DE); put important private companies after "|".');
   lines.push('   For shares not listed in the US, write each one\'s size after the ticker, or every tile is drawn the same size: its index weight ("BHP.AX 9.8%") or market value in US dollars ("SAP.DE 300bn", no $: the shell deletes it). Always with the exchange suffix (.T, .KS, .BK, .SR, .HK, .L …).');
   lines.push('   Add --how "<which site or API worked>" and --source "<main link>" so the answer is remembered and never researched again:');
-  lines.push('   ' + cli + ' --how "SEC 13F filings via EDGAR full-text search" --source "https://www.sec.gov/..." "' + (info.total ? '<what already showed, e.g. ' + info.sections[0].title + '>; ' : '') + 'OpenAI investors: MSFT, NVDA, ORCL, 9984.T | private: Thrive Capital, Sequoia"');
+  lines.push('   ' + cli + ' --how "SEC 13F filings via EDGAR full-text search" --source "https://www.sec.gov/..." "' + (info.total ? '<what already showed, e.g. ' + shellSafe(info.sections[0].title) + '>; ' : '') + 'OpenAI investors: MSFT, NVDA, ORCL, 9984.T | private: Thrive Capital, Sequoia"');
   lines.push('3. Until you run that command, the dashboard shows nothing for ' + (todo.length > 1 ? 'these questions' : 'this question') + ': do not tell the person the companies are on screen before it. Reply after it, ending with the dashboard line it prints.');
   if (info.unmatched.length) lines.push('If a word is not about companies at all, tell the person instead. ' + hint(info.vocab));
 }

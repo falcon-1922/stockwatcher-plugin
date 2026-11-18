@@ -23,7 +23,7 @@ export function dataDir(env = process.env, platform = process.platform) {
 export const DEFAULT_PORT = 4317;
 
 // One number for the command, the server and the page. Keep .claude-plugin/plugin.json in step.
-export const VERSION = '3.10.1';
+export const VERSION = '3.10.2';
 
 // "3.10.0" is newer than "3.9.2": compared number by number.
 export function isNewer(a, b) {
@@ -39,3 +39,8 @@ export function browserCommand(url, platform = process.platform) {
   if (platform === 'win32') return ['rundll32.exe', ['url.dll,FileProtocolHandler', url]];
   return ['xdg-open', [url]];
 }
+
+// Words put inside double quotes in a command we print for the agent to run. bash and zsh still
+// run `…` and $(…) inside double quotes, PowerShell expands $ and `, and \ escapes; so those go,
+// as does " (it would end the quotes). Nothing else the person writes is lost: tickers, %, &, '.
+export const shellSafe = s => String(s).replace(/[$`"\\]/g, '');
