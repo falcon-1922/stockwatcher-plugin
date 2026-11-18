@@ -219,6 +219,17 @@ const SUFFIX = {
 
 // "OpenAI investors: MSFT, NVDA, 9984.T" names the list of picks.
 // The title may contain commas ("Berkshire top 10 (13F, 30 Sep 2026)") but not ":", ";" or "|".
+// A size after a ticker or name in a researched list: an index weight ("BHP.AX 9.8%") or a
+// market value in US dollars ("BHP.AX $160bn", "SAP.DE 250b", "7203.T 0.3tn"). Without one,
+// a share that is not listed in the US has no market value here and its tile gets a median size.
+const SIZED = /^(.*?\S)\s*[=(:]?\s*(?:(\d+(?:\.\d+)?)\s*%|(?:US\$|USD\s*|\$)?(\d+(?:\.\d+)?)\s*(tn|trillion|t|bn|billion|b|mn|million|m)\b)\s*\)?\s*$/i;
+const UNIT = { t: 1e12, tn: 1e12, trillion: 1e12, b: 1e9, bn: 1e9, billion: 1e9, m: 1e6, mn: 1e6, million: 1e6 };
+export function sizeOf(raw) {
+  const m = SIZED.exec(String(raw || ''));
+  if (!m || !/[a-z]/i.test(m[1])) return { text: raw, size: null };
+  return { text: m[1], size: m[2] != null ? { indexWeight: +m[2] || 0.004 } : { cap: Math.round(+m[3] * UNIT[m[4].toLowerCase()]) } };
+}
+
 const TITLED = /^\s*([^:;|$]{2,60}?)\s*:\s*(\S.*)$/;
 export const isTitledList = q => String(q || '').split(';').some(p => TITLED.test(p));
 
@@ -250,9 +261,17 @@ function resolveOne(query, index, themes) {
     query = bar < 0 ? titled[2] : titled[2].slice(0, bar);
     footnote = bar < 0 ? '' : titled[2].slice(bar + 1).trim();
   }
-  const addPick = (row, stock) => { const k = stock ? stock.y : row[SYM]; if (!seen.has(k)) { seen.add(k); picks.push(stock || stockOf(row)); } };
+  let given = null;   // the size the list gave for the share being read
+  const addPick = (row, stock) => {
+    const k = stock ? stock.y : row[SYM];
+    if (seen.has(k)) return;
+    seen.add(k);
+    picks.push({ ...(stock || stockOf(row)), ...(given || {}) });
+  };
 
-  for (const raw of splitQuery(query)) {
+  for (const part of splitQuery(query)) {
+    const { text: raw, size } = titled ? sizeOf(part) : { text: part, size: null };
+    given = size;
     const text = normalise(raw);
     const core = stripFiller(text);
     if (!core) continue;
@@ -308,7 +327,10 @@ function resolveOne(query, index, themes) {
       }
     }
   }
-  if (picks.length) sections.unshift({ id: titled ? slug(picksTitle) : 'picks', title: picksTitle, blurb: '', footnote, groups: [{ name: 'Selected shares', note: '', stocks: picks }] });
+  // Index weights given for most of the list size the tiles by weight; market values given
+  // go where the US list's values go (stock.cap), so the page sizes by them anyway.
+  const weighted = picks.filter(p => p.indexWeight > 0).length;
+  if (picks.length) sections.unshift({ id: titled ? slug(picksTitle) : 'picks', title: picksTitle, blurb: weighted ? 'Tile size: index weight as given with the list.' : '', footnote, groups: [{ name: 'Selected shares', note: '', stocks: picks }], ...(weighted * 2 >= picks.length ? { sizeBy: 'indexWeight' } : {}) });
   return { sections, unmatched };
 }
 

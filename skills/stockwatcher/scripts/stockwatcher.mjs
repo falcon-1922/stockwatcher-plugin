@@ -191,6 +191,7 @@ if (todo.length) {
   if (todo.length > 1) lines.push('These ' + todo.length + ' questions are independent. If you can run sub-agents in parallel (Claude Code: the Agent tool; Codex: parallel tasks), give each one its own sub-agent with web search, then combine the answers.');
   lines.push('1. Search the web for the companies listed on a stock exchange that answer ' + (todo.length > 1 ? 'each question' : 'it') + (todo.some(t => /\(source: /.test(t)) ? ' (start with the source link given)' : '') + '.');
   lines.push('2. Run the command again with one named list per question: "<short title>: <tickers>", lists separated by ";". Use Yahoo symbols (non-US with the exchange suffix, e.g. 9984.T, SAP.DE); put important private companies after "|".');
+  lines.push('   For shares not listed in the US, write each one\'s size after the ticker, or every tile is drawn the same size: its index weight ("BHP.AX 9.8%") or market value in US dollars ("SAP.DE $300bn").');
   lines.push('   Add --how "<which site or API worked>" and --source "<main link>" so the answer is remembered and never researched again:');
   lines.push('   ' + cli + ' --how "SEC 13F filings via EDGAR full-text search" --source "https://www.sec.gov/..." "' + (info.total ? '<what already showed, e.g. ' + info.sections[0].title + '>; ' : '') + 'OpenAI investors: MSFT, NVDA, ORCL, 9984.T | private: Thrive Capital, Sequoia"');
   if (info.unmatched.length) lines.push('If a word is not about companies at all, tell the person instead. ' + hint(info.vocab));

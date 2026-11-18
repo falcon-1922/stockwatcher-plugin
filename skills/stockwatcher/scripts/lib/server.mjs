@@ -40,6 +40,26 @@ const SESSION_NOTE = {
 };
 const SESSION_WORD = { after: 'after hours', pre: 'pre-market', closed: 'outside regular hours' };
 
+// A researched list whose shares have no size here (not listed in the US) would be drawn with
+// equal tiles, which misleads. The chat is told, in the list's own format, what to add.
+export function missingSizes(sections) {
+  const out = [];
+  for (const sec of sections) {
+    if (sec.sizeBy && sec.sizeBy !== 'indexWeight') continue;
+    const byWeight = sec.sizeBy === 'indexWeight';
+    const all = sec.groups.flatMap(g => g.stocks);
+    const bare = all.filter(st => !(byWeight ? st.indexWeight > 0 : st.cap > 0));
+    if (!bare.length) continue;
+    const a = bare[0].y, b = (bare[1] || bare[0]).y;
+    out.push('SIZES MISSING: ' + bare.length + ' of ' + all.length + ' shares in "' + sec.title + '" have no ' + (byWeight ? 'index weight' : 'market value')
+      + ' (' + bare.slice(0, 8).map(st => st.y).join(', ') + (bare.length > 8 ? ', …' : '') + '), so their tiles are all drawn the same size and the map is misleading.'
+      + ' Before replying, look up each share\'s index weight (for an index: from the index provider or a constituents table) or else its market value in US dollars,'
+      + ' and run the command again with the size after every ticker, for example "' + sec.title + ': ' + a + ' 9.8%, ' + b + ' 4.2%, …" or "' + sec.title + ': ' + a + ' $160bn, …".'
+      + ' No thousands separators. Keep the same --how and --source.');
+  }
+  return out;
+}
+
 export function summarise(sections, unmatched, research, notes = []) {
   return {
     sections: sections.map(s => ({ id: s.id, title: s.title, count: s.groups.reduce((a, g) => a + g.stocks.length, 0), groups: s.groups.map(g => g.name), ...(s.sizeBy === 'held' ? { about: s.blurb } : {}) })),
@@ -183,7 +203,9 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
     // Questions (and unknown words) answered before are taken from memory instead of research.
     const mem = fromMemory([...questions, ...found.unmatched, ...extraUnmatched], refresh);
     const stillQuestions = mem.left.filter(x => questions.includes(x));
-    return { sections: [...sections, ...found.sections, ...mem.sections], unmatched: mem.left.filter(x => !questions.includes(x)), research: stillQuestions, notes: [...notes, ...mem.notes], session };
+    const ids = new Set();
+    const all = [...sections, ...found.sections, ...mem.sections].filter(s => !ids.has(s.id) && ids.add(s.id));   // a list and its remembered copy are one
+    return { sections: all, unmatched: mem.left.filter(x => !questions.includes(x)), research: stillQuestions, notes: [...notes, ...mem.notes], session };
   }
 
   // Self-learning: the questions a window is waiting on, and the named lists that answer them
@@ -272,13 +294,17 @@ export function createServer({ pagePath, index, themes, prices = createPriceCach
         case '/api/dashboard': return send(res, 200, await dashboard(q));
         case '/api/show': {
           await index.ready();
+          // Research coming back is remembered first, so the question it answers, when the chat
+          // repeats it in front of the lists ("show me the ASX 20; ASX 20: BHP.AX 16.5%, …"),
+          // counts as answered instead of asking for research again.
+          const learned = learn(w, q, url.searchParams.get('how') || '', url.searchParams.getAll('src').filter(Boolean));
           const { sections, unmatched, research, notes } = await lookup(q, { save: true });
           const symbols = symbolsOf(sections);
           if (symbols.length) prices.refresh(symbols); // warm up before the page asks
+          if (isTitledList(q)) notes.push(...missingSizes(sections));
           views.set(w, { q, at: Date.now() });
           saveViews();
           broadcast(w);
-          const learned = learn(w, q, url.searchParams.get('how') || '', url.searchParams.getAll('src').filter(Boolean));
           const open = [...research, ...unmatched];
           // Count what the person asks for, so the page can offer their usual requests. A
           // portfolio counts as "my portfolio" (never its contents); the chat's research

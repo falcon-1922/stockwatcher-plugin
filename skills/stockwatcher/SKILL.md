@@ -1,6 +1,6 @@
 ---
 name: stockwatcher
-description: "Shows a live stock-market dashboard and heat map in the browser, steered from the chat. Handles a market index (\"S&P 500\", \"Nasdaq 100\", \"Dow\"), a sector (\"healthcare\", \"banks\", \"oil and gas\"), a theme (\"chips\", \"neoclouds\", \"AI\", \"magnificent 7\"), company names or tickers (\"nvidia, amd and tesla\"), the person's own portfolio (\"this is my portfolio: 10 AAPL, 5 MSFT\", \"show my portfolio\"), an investor's portfolio from their latest 13F (\"Warren Buffett's portfolio\", \"Ackman holdings\"), what r/wallstreetbets is talking about (the word or a Reddit thread link), the most active shares by trading volume (\"top 100 by volume\", \"most active\"), after-hours and pre-market prices (\"after hours\", \"aftermarket\", \"premarket\"), and questions about companies (\"anyone who invested in OpenAI\", \"Apple's suppliers\"), which you research once with web search and the skill remembers. Use whenever someone asks to see, watch, track, compare or chart stocks, share prices, their portfolio or the market, and for every follow-up that changes what is shown."
+description: "Shows a live stock-market dashboard and heat map in the browser, steered from the chat. It is a local command (node), always available: read this skill and run it, never say the dashboard is unavailable. Handles a market index (\"S&P 500\", \"Nasdaq 100\", \"Dow\"), a sector (\"healthcare\", \"banks\", \"oil and gas\"), a theme (\"chips\", \"neoclouds\", \"AI\", \"magnificent 7\"), company names or tickers (\"nvidia, amd and tesla\"), the person's own portfolio (\"this is my portfolio: 10 AAPL, 5 MSFT\", \"show my portfolio\"), an investor's portfolio from their latest 13F (\"Warren Buffett's portfolio\", \"Ackman holdings\"), what r/wallstreetbets is talking about (the word or a Reddit thread link), the most active shares by trading volume (\"top 100 by volume\", \"most active\"), after-hours and pre-market prices (\"after hours\", \"aftermarket\", \"premarket\"), and questions about companies (\"anyone who invested in OpenAI\", \"Apple's suppliers\"), which you research once with web search and the skill remembers. Use whenever someone asks to see, watch, track, compare or chart stocks, share prices, their portfolio or the market, and for every follow-up that changes what is shown."
 ---
 
 # Stockwatcher
@@ -33,7 +33,14 @@ After research, use the last line of the final run. The page also has a box and 
 
 ## Index heat maps
 
-For the DAX, tile area represents the published index weight on the date shown. Colour represents price change over the selected period. For other index requests, check the sizing label before describing what the map shows. A researched list of tickers establishes membership only. If weights are unavailable, identify the result as a constituent watchlist and state how its tiles are sized.
+Tile area must mean something: the index weight, or the market value. The command knows market values only for shares listed in the US. **For any other index or list (ASX, FTSE, Nikkei, Ibovespa, European or Asian companies) you must find each share's size yourself, in the same research step as the tickers:** the index weight in % (preferred for an index: from the index provider's factsheet or a constituents table) or else the market value in US dollars. Write it right after each ticker:
+
+```
+ASX 20: BHP.AX 9.8%, CBA.AX 11.2%, CSL.AX 5.1%, …
+European giants: SAP.DE $300bn, ASML.AS $280bn, …
+```
+
+If the output says `SIZES MISSING`, the tiles are all the same size and the map is wrong: look the sizes up and run the command again before replying. Never tell the person the map is weighted when it is not. For the DAX the weights are built in.
 
 ## The person's own portfolio
 
@@ -48,7 +55,7 @@ The skill also counts what the person asks for and puts their usual requests fir
 The local data answers indices, sectors, themes, names, tickers, fund portfolios and anything researched before (the skill remembers). Anything else is yours to find out, once:
 
 1. If the output lists "Past research that may help", start with that method. Otherwise search the web for the companies listed on a stock exchange that answer each question; if the person gave a link, it appears as "(source: …)": read that page first. If several independent questions are listed and you can run sub-agents in parallel (Claude Code: the Agent tool; Codex: parallel tasks), give each question its own sub-agent, then combine the results.
-2. Run the command again, keeping what already showed and adding one named list per question (lists separated by `;`, private companies after `|`), plus `--how` (which site or API worked) and `--source` (the main link) so the answer is remembered and the same question is answered instantly next time:
+2. Run the command again, keeping what already showed and adding one named list per question (lists separated by `;`, private companies after `|`; for shares not listed in the US, a size after each ticker: index weight `9.8%` or market value `$160bn`, see Index heat maps above), plus `--how` (which site or API worked) and `--source` (the main link) so the answer is remembered and the same question is answered instantly next time:
 
 ```bash
 node "<folder of this SKILL.md>/scripts/stockwatcher.mjs" --how "Reuters and CNBC articles on the 2026 funding round" --source "https://www.cnbc.com/..." "Dow Jones; OpenAI investors: MSFT, NVDA, ORCL, 9984.T | private: Thrive Capital, Sequoia"
