@@ -1,5 +1,9 @@
 # Stockwatcher
 
+![Stockwatcher in the browser: a live heat map of the 100 shares r/wallstreetbets mentions most, grouped by sector and sized by market value](assets/screenshot.jpg)
+
+**Read the story behind it:** [Building personalised skills](https://msukhareva.substack.com/p/building-personalised-skills-an-agentic) on the AI Realist Substack.
+
 A live stock-market dashboard and heat map in the browser, steered from the chat.
 Ask for an index, a sector, a theme, companies, an investor's 13F portfolio, what
 r/wallstreetbets is discussing, or a question about companies that needs research.
@@ -10,6 +14,10 @@ researched answers are remembered; and the page offers your usual requests as bu
 
 Built by [Maria Sukhareva](https://www.linkedin.com/in/msukhareva/) of
 [AI Realist](https://airealist.org).
+
+- Stockwatcher on ClawHub: [clawhub.ai/ktoetotam/skills/stockwatcher](https://clawhub.ai/ktoetotam/skills/stockwatcher) (the skill for OpenClaw)
+- AI Realist: [airealist.org](https://airealist.org/?utm_source=github) (courses, workshops and registrations)
+- The article: [Building personalised skills](https://msukhareva.substack.com/p/building-personalised-skills-an-agentic) (how and why Stockwatcher was built)
 
 ## What you need
 
