@@ -17,11 +17,18 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { homeDir, DEFAULT_PORT, VERSION, browserCommand, isNewer, shellSafe } from './lib/home.mjs';
 import { withAdded } from './lib/server.mjs';
+import { isRemote, writeSnapshot, screenshot } from './lib/snapshot.mjs';
 
 const args = process.argv.slice(2);
 const flag = n => { const i = args.indexOf(n); if (i < 0) return false; args.splice(i, 1); return true; };
 const opt = n => { const i = args.indexOf(n); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v; };
-const noOpen = flag('--no-open') || process.env.STOCKWATCHER_NO_OPEN === '1';
+// A cloud session (Claude Code on the web, Codex cloud): the person cannot open 127.0.0.1, so
+// each view is also written as one self-contained HTML file to publish (a claude.ai Artifact).
+// --screenshot: also a PNG of it, for chats that cannot open a page at all (a phone app).
+const wantShot = flag('--screenshot') || process.env.STOCKWATCHER_SCREENSHOT === '1';
+const remote = flag('--snapshot') || wantShot || isRemote();
+const outDir = opt('--out') || process.env.STOCKWATCHER_OUT || process.cwd();
+const noOpen = flag('--no-open') || process.env.STOCKWATCHER_NO_OPEN === '1' || remote;
 const stop = flag('--stop');
 const list = flag('--list');
 const showMemory = flag('--memory');                  // what has been learned and saved
@@ -237,10 +244,33 @@ if (todo.length) {
   lines.push('3. Until you run that command, the dashboard shows nothing for ' + (todo.length > 1 ? 'these questions' : 'this question') + ': do not tell the person the companies are on screen before it. Reply after it, ending with the dashboard line it prints.');
   if (info.unmatched.length) lines.push('If a word is not about companies at all, tell the person instead. ' + hint(info.vocab));
 }
-lines.push('', 'To change the view, the person says so in the chat (run this command again with their words) or types it in the page’s box.');
+lines.push('', 'To change the view, the person says so in the chat (run this command again with their words)' + (remote ? '.' : ' or types it in the page’s box.'));
 // The reply always ends with where to see the dashboard. A short link: it opens the window's
 // current view, whatever it shows by then.
 const link = base + '/' + (w !== 'main' ? '?w=' + w : '');
+if (remote) {
+  // The 127.0.0.1 link means nothing to the person here: hand over a page file and a picture.
+  if (info.total) {
+    try {
+      const snap = await writeSnapshot(base, shownQ, outDir);
+      const priced = Math.min(snap.priced, info.total);
+      const shot = await screenshot(snap.file);
+      lines.push('', 'REMOTE SESSION: the person cannot open ' + base + ' (it is on this machine, not theirs). Do not give them that link.',
+        'The dashboard was saved as one self-contained page (' + priced + ' of ' + info.total + ' shares priced, ' + Math.round(snap.bytes / 1024) + ' KB): ' + snap.file,
+        shot.file ? 'And as a picture: ' + shot.file : 'No picture was taken: ' + shot.error + '.',
+        'Show it to them, the first of these that works here:',
+        '  1. Claude Code (web, desktop, phone): publish the page file with the Artifact tool; it becomes a private claude.ai page that opens on any device. Publish the same file again for later views to keep the link.',
+        '  2. Otherwise, if you can attach images to your reply (Claude Code: SendUserFile; Codex: attach the image or show it inline), send the picture' + (shot.file ? '' : ' (none was taken: say so)') + '.',
+        '  3. Otherwise send the page file itself; it opens in any browser, phone included.',
+        'Tell them it is a snapshot of the prices now: it does not update by itself, and asking again in the chat makes a fresh one. For a dashboard that stays live on a phone, see "Phones and cloud sessions" in SKILL.md.');
+      if (!priced) lines.push('NO PRICES: none of the ' + info.total + ' shares got a price, so the page is grey. This machine cannot reach the price feeds: in Codex cloud the agent has no internet by default. Do not send a grey page as if it were live: tell the person, and propose the fix in references/hosting.md (allow the price hosts, or host the dashboard).');
+    } catch (e) {
+      lines.push('', 'REMOTE SESSION: the person cannot open ' + base + ', and the snapshot could not be written (' + e.message + '). Run the same command once more; if it fails again, tell them what is shown and that the page can only be opened on this machine.');
+    }
+  } else if (!todo.length) lines.push('', 'REMOTE SESSION: nothing to show yet, so no page was made. Do not give the person the ' + base + ' link.');
+  console.log(lines.join('\n'));
+  process.exit(0);
+}
 lines.push('', 'End your reply to the person with this line, exactly as it is:', 'You can see the dashboard here: ' + link);
 console.log(lines.join('\n'));
 process.exit(0);

@@ -66,6 +66,7 @@ async function smokeTest() {
   const logFile = join(home, 'server.log');
   const env = {
     ...process.env,
+    STOCKWATCHER_SNAPSHOT: '0',   // the local page is what is tested, also from a cloud session
     STOCKWATCHER_HOME: home,
     STOCKWATCHER_DATA: join(home, 'data'),
     STOCKWATCHER_OFFLINE: '1',
