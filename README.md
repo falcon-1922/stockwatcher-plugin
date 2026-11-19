@@ -15,7 +15,11 @@ researched answers are remembered; and the page offers your usual requests as bu
 Built by [Maria Sukhareva](https://www.linkedin.com/in/msukhareva/) of
 [AI Realist](https://airealist.org).
 
-- Stockwatcher on ClawHub: [clawhub.ai/ktoetotam/skills/stockwatcher](https://clawhub.ai/ktoetotam/skills/stockwatcher) (the skill for OpenClaw)
+This repository (`falcon-1922/stockwatcher-plugin`) started as a fork of her
+[`ktoetotam/stockwatcher-plugin`](https://github.com/ktoetotam/stockwatcher-plugin) and is now
+maintained separately. It adds the "sp index" synonym and the `/stockwatcher:stop` command.
+
+- Stockwatcher on ClawHub: [clawhub.ai/ktoetotam/skills/stockwatcher](https://clawhub.ai/ktoetotam/skills/stockwatcher) (the original skill for OpenClaw, without this repository's changes)
 - AI Realist: [airealist.org](https://airealist.org/?utm_source=github) (courses, workshops and registrations)
 - The article: [Building personalised skills](https://msukhareva.substack.com/p/building-personalised-skills-an-agentic) (how and why Stockwatcher was built)
 
@@ -35,14 +39,14 @@ The same plugin works in Claude Code, Codex and OpenClaw.
 **Claude Code** (type these in the chat):
 
 ```bash
-/plugin marketplace add ktoetotam/stockwatcher-plugin
+/plugin marketplace add falcon-1922/stockwatcher-plugin
 /plugin install stockwatcher@stockwatcher
 ```
 
 **Codex** (type these in a terminal, then start a new chat):
 
 ```bash
-codex plugin marketplace add ktoetotam/stockwatcher-plugin
+codex plugin marketplace add falcon-1922/stockwatcher-plugin
 codex plugin add stockwatcher@airealist
 ```
 
@@ -54,7 +58,7 @@ through the repository's marketplace: `openclaw plugins install git:…` does no
 that route takes native OpenClaw plugins only and Stockwatcher is a skill bundle.
 
 ```bash
-openclaw plugins install stockwatcher --marketplace https://github.com/ktoetotam/stockwatcher-plugin --accept-capabilities
+openclaw plugins install stockwatcher --marketplace https://github.com/falcon-1922/stockwatcher-plugin --accept-capabilities
 ```
 
 To get a newer version later:

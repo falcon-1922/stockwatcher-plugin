@@ -249,3 +249,64 @@ claude -p "/stockwatcher:stop"
 The next dashboard request starts a 3.10.4 server.
 
 This section was added in a follow-up PR, after the merge and the update.
+
+---
+
+## Disconnecting from the original project
+
+The original project (`ktoetotam/stockwatcher-plugin`) won't be updated from here. This repo is maintained on its own.
+
+### Already done locally
+
+- **No `upstream` remote.** The only remote is `origin`, which is `falcon-1922/stockwatcher-plugin`. Nothing in this checkout can fetch from or push to the original.
+- **`gh` default repo set to this one:**
+  ```
+  gh repo set-default falcon-1922/stockwatcher-plugin
+  ```
+  While GitHub still marks this repo as a fork, `gh pr create` can offer the parent as a target. Setting the default keeps PRs from this folder going to this repo.
+
+### URLs pointed at this repo (3.10.5)
+
+On branch `fork-urls`:
+
+- **Manifests:** `homepage` and `repository` in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json` and `plugin.json` now point to `https://github.com/falcon-1922/stockwatcher-plugin`.
+- **`.claude-plugin/marketplace.json`:** `owner.name` is now `falcon-1922`. The marketplace `name` stays `stockwatcher`, so the install id `stockwatcher@stockwatcher` doesn't change.
+- **README:** the Claude Code, Codex and OpenClaw install commands now use this repo. A note under the credit says the repo started as a fork and is maintained separately, and the ClawHub link is labelled as the original skill, without this repo's changes.
+- **Version:** bumped to 3.10.5 (all three manifests plus `VERSION` in `home.mjs`) so the installed copy picks up the change.
+
+**Kept on purpose:**
+- **Credit to Maria Sukhareva / AI Realist:** the manifests' `author`, the README credit, the "Who made it" section in `SKILL.md`, and the dashboard footer.
+- **The Codex marketplace name `airealist`** (`.agents/plugins/marketplace.json`). Renaming it would change the Codex install id `stockwatcher@airealist`.
+- **The workshop line (`promo.mjs`).** The dashboard still fetches the maker's current workshop from airealist.org about once a day.
+
+### Detaching the fork on GitHub (to do by hand)
+
+GitHub still shows "forked from ktoetotam/stockwatcher-plugin". That link sends nothing to the original; its owner only gets changes if someone opens a PR to them. Removing it is an account action, so it has to be done in GitHub by the repo owner:
+
+1. Open https://github.com/falcon-1922/stockwatcher-plugin/settings and go to **General**, then **Danger Zone**.
+2. Choose **Leave fork network** and confirm by typing the repo name. The repo becomes a normal, standalone repo. Commits, PRs #1 onwards, the name and the URL all stay.
+3. **If that option isn't there,** ask GitHub Support (https://support.github.com/contact) to detach `falcon-1922/stockwatcher-plugin` from its fork network. The result is the same.
+4. **Check:**
+   ```
+   gh repo view falcon-1922/stockwatcher-plugin --json isFork,parent
+   ```
+   It should show `"isFork": false` and no parent.
+
+Nothing else needs to change afterwards. The URL stays the same, so `origin`, the `gh` default and the plugin install (`claude plugin update stockwatcher@stockwatcher`) all keep working.
+
+**Last resort: recreate the repo.** Only if detaching isn't possible. This loses PRs, issues and repo settings, and deleting a repo can't be undone:
+
+```
+git clone --mirror https://github.com/falcon-1922/stockwatcher-plugin.git /tmp/sw-mirror   # full backup first
+# on GitHub: delete falcon-1922/stockwatcher-plugin
+gh repo create falcon-1922/stockwatcher-plugin --public
+git -C /tmp/sw-mirror push --mirror https://github.com/falcon-1922/stockwatcher-plugin.git
+```
+
+Keeping the same name keeps the URL, so the plugin install still works.
+
+**Pulling from the original later:** detaching only removes GitHub's link. To take a change from the original, fetch it by URL:
+
+```
+git fetch https://github.com/ktoetotam/stockwatcher-plugin.git main
+```
