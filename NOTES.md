@@ -273,6 +273,7 @@ On branch `fork-urls`:
 - **`.claude-plugin/marketplace.json`:** `owner.name` is now `falcon-1922`. The marketplace `name` stays `stockwatcher`, so the install id `stockwatcher@stockwatcher` doesn't change.
 - **README:** the Claude Code, Codex and OpenClaw install commands now use this repo. A note under the credit says the repo started as a fork and is maintained separately, and the ClawHub link is labelled as the original skill, without this repo's changes.
 - **Version:** bumped to 3.10.5 (all three manifests plus `VERSION` in `home.mjs`) so the installed copy picks up the change.
+- **Merged and installed:** PR #6 was merged as `8fba771`. Then `claude plugin marketplace update stockwatcher` and `claude plugin update stockwatcher@stockwatcher` reported "updated from 3.10.4 to 3.10.5". The installed manifest in `~/.claude/plugins/cache/stockwatcher/stockwatcher/3.10.5/` shows the new `repository` URL.
 
 **Kept on purpose:**
 - **Credit to Maria Sukhareva / AI Realist:** the manifests' `author`, the README credit, the "Who made it" section in `SKILL.md`, and the dashboard footer.
