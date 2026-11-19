@@ -48,7 +48,7 @@ Every skill starts with frontmatter in its `SKILL.md`:
 ```yaml
 ---
 name: stockwatcher
-description: "Shows a live stock-market dashboard and heat map in the browser... Handles a market index..., a sector..., the person's own portfolio..., questions about companies (\"anyone who invested in OpenAI\", \"Apple's suppliers\")... Use whenever someone asks to see, watch, track, compare or chart stocks..."
+description: 'Shows a live stock-market dashboard and heat map in the browser... Handles a market index..., a sector..., the person''s own portfolio..., questions about companies ("anyone who invested in OpenAI", "Apple''s suppliers")... Use whenever someone asks to see, watch, track, compare or chart stocks...'
 ---
 ```
 
@@ -80,7 +80,7 @@ Once the model decides a skill fits, it calls the `Skill` tool, and the body of 
 
 ## What the skill uses a language model for
 
-The skill itself never calls a language model. It has no API keys, no model SDK, and no requests to Anthropic or OpenAI anywhere in the code. `resolve.mjs` even says so at the top: *"using only local data … No model calls."* The only model involved is the agent the skill runs inside (Claude Code, Codex and so on), and it gets a fairly narrow set of jobs.
+The skill itself never calls a language model. It has no API keys, no model SDK, and no requests to Anthropic or OpenAI anywhere in the code. `resolve.mjs` even says so at the top: _"using only local data … No model calls."_ The only model involved is the agent the skill runs inside (Claude Code, Codex and so on), and it gets a fairly narrow set of jobs.
 
 ### What the code does without a model
 
@@ -276,6 +276,7 @@ On branch `fork-urls`:
 - **Merged and installed:** PR #6 was merged as `8fba771`. Then `claude plugin marketplace update stockwatcher` and `claude plugin update stockwatcher@stockwatcher` reported "updated from 3.10.4 to 3.10.5". The installed manifest in `~/.claude/plugins/cache/stockwatcher/stockwatcher/3.10.5/` shows the new `repository` URL.
 
 **Kept on purpose:**
+
 - **Credit to Maria Sukhareva / AI Realist:** the manifests' `author`, the README credit, the "Who made it" section in `SKILL.md`, and the dashboard footer.
 - **The Codex marketplace name `airealist`** (`.agents/plugins/marketplace.json`). Renaming it would change the Codex install id `stockwatcher@airealist`.
 - **The workshop line (`promo.mjs`).** The dashboard still fetches the maker's current workshop from airealist.org about once a day.
