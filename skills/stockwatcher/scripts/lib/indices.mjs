@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 export const INDEX_DEFS = [
   { key: 'sp500', id: 'sp500', title: 'S&P 500', blurb: 'All members of the S&P 500, grouped by sector; block size is market value.',
-    aliases: ['s&p 500', 's&p500', 's&p', 'sp500', 'sp 500', 'snp 500', 'spx', 'spy', 'standard and poors', 'standard & poors', 'the market', 'stock market', 'us market', 'whole market', 'overall market', 'market heatmap', 'market heat map'] },
+    aliases: ['s&p 500', 's&p500', 's&p', 'sp500', 'sp 500', 'sp index', 'snp 500', 'spx', 'spy', 'standard and poors', 'standard & poors', 'the market', 'stock market', 'us market', 'whole market', 'overall market', 'market heatmap', 'market heat map'] },
   { key: 'ndx', id: 'ndx', title: 'Nasdaq-100', blurb: 'The 100 largest non-financial companies on the Nasdaq exchange, grouped by sector.',
     aliases: ['nasdaq 100', 'nasdaq-100', 'nasdaq100', 'ndx', 'qqq', 'nasdaq'] },
   { key: 'dow', id: 'dow', title: 'Dow Jones', blurb: 'The 30 companies in the Dow Jones Industrial Average, grouped by sector.',
