@@ -1,6 +1,6 @@
 {
   "name": "stockwatcher",
-  "owner": { "name": "ktoetotam" },
+  "owner": { "name": "falcon-1922" },
   "metadata": { "description": "Stock-market dashboard for Claude Code" },
   "plugins": [
     {
