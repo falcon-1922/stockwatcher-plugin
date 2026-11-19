@@ -65,12 +65,17 @@ openclaw plugins update stockwatcher --accept-capabilities
 
 Then ask, for example, "show me the S&P 500" or "this is my portfolio: 10 AAPL, 5 MSFT".
 
+To stop the dashboard's local server in Claude Code, type `/stockwatcher:stop` (or ask "stop
+the stockwatcher server"). The next dashboard request starts it again.
+
 ## Layout
 
 - `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` — the Claude Code
   plugin, and what lets this repository be added as a marketplace there.
 - `.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json` — the same for Codex.
 - `plugin.json` — the portable manifest (Agent Plugins format) for other apps that read it.
+- `commands/stop.md` — the `/stockwatcher:stop` slash command for Claude Code, which runs the
+  launcher with `--stop`.
 - `assets/logo.svg` — the icon shown in Codex's plugin list.
 - `skills/stockwatcher/` — the skill: `SKILL.md`, the dashboard page, the server and
   command scripts, and the shipped data (stock list, index members, themes).
