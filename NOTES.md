@@ -102,3 +102,109 @@ Everything below is plain Node.js:
 ### Bottom line
 
 Roughly 95% of requests are handled by keyword matching against curated tables. In those cases the model is just a launcher and a narrator. It only does real work on questions like "who invested in OpenAI" or "Apple's suppliers", where it does web research and maps companies to tickers. The design is deliberate: the script asks the model to do only what its local data can't.
+
+---
+
+## Does the skill start a server for every request?
+
+No. One server stays running, and each `stockwatcher.mjs` call is a short launcher that passes the request to that server and exits.
+
+### How the launcher finds the server (`scripts/stockwatcher.mjs`, `ensureServer`)
+
+1. The launcher checks ports 4317–4326 by calling `/api/health` on each. If a Stockwatcher server of the same or a newer version answers, it uses that server and just sends it the new view.
+2. If none answers, it starts `scripts/serve.mjs` as a separate background process (`detached: true` plus `.unref()`), so the server keeps running after the launcher exits.
+3. If it finds an older version, it stops that one and starts the current version in its place. That's why installing 3.10.3 replaced the 3.10.2 server.
+
+### When the server stops (`scripts/serve.mjs`)
+
+- **When idle:** after 3 hours with no activity by default (`STOCKWATCHER_IDLE_MS` changes this). The timer restarts on activity. An open dashboard tab fetches prices every minute, so it most likely keeps the server alive for as long as the tab is open.
+- **When asked to:** `--stop`, a call to `/api/stop`, or SIGTERM/SIGINT.
+
+### Checking on it
+
+- `curl http://127.0.0.1:4317/api/health` shows the version, PID, number of loaded stocks and connected viewers, for example `{"app":"stockwatcher","version":"3.10.3","pid":39795,"stocks":5353,"viewers":1}`.
+- The log is at `~/Library/Caches/stockwatcher/server.log`.
+
+---
+
+Stopping the server after every request would break the dashboard. Startup cost itself is small.
+
+What breaks
+
+- The page stops updating. The browser loads the dashboard from the server and asks it for prices every minute (assets/dashboard.html:845). With the server gone, prices stop updating and reloading the page fails.
+- Follow-ups open new tabs. The launcher pushes follow-ups like "add the banks" to the open tab over a live connection (server.mjs:539). With no server, each request opens a fresh tab instead of updating the one on screen.
+- The page's own controls stop working. The request box, the example buttons and the Save button all call the server.
+- The tab can open to nothing. The launcher opens the browser and exits. If the server stops right away, the page may load before it does, or not at all.
+
+What's fine
+
+- Startup cost is small. Node starts, loads the bundled list of 5,353 stocks and fetches prices; the launcher waits up to 3 s but is usually much faster. Your portfolio fetch took about 150 ms (yahoo: 3/3 in 153ms in the log).
+- No data is lost. Portfolios, research and the price cache are saved to disk, so a cold start loses nothing.
+
+What "long lived" costs you now
+
+The idle cost is background network traffic, not memory. The server polls the Moscow Exchange every minute even when no Russian shares are on screen; that's the moex: line repeating in the log. It also sends a keep-alive ping to open tabs every 25 s, which resets the 3-hour idle timer. So the server never stops while a tab is open, and then stays up for 3 hours after you close it.
+
+Options, from least to most change:
+
+1. Shorter idle timeout, no code change. Set STOCKWATCHER_IDLE_MS to 10 minutes (600000) in the env block of ~/.claude/settings.json. The server would then stop about 10 minutes after you close the tab or stop using it.
+2. Stop when the last tab closes (recommended). This is a small change in your fork's server.mjs: when the last tab disconnects, wait about 30 s for a reload, then exit. The server would live exactly as long as you're looking at it. I'd also only poll the Moscow Exchange while a Moscow index is on screen.
+3. Snapshot only. Write a static HTML file with the prices built in, then stop the server. No server stays up, but the page never updates and the box and buttons don't work. The skill already has a snapshot mode for phone and cloud sessions; it would need a change to stop the server afterwards.
+
+Want me to do option 2 on a branch in your fork, perhaps with option 1 as a fallback?
+
+---
+
+---
+
+## Adding the `/stockwatcher:stop` command (3.10.4)
+
+The launcher already had a `--stop` flag, and you could ask Claude in the chat to stop the server, but there was no slash command. These are the steps taken to add one and install it.
+
+### 1. Branch
+
+```
+git switch -c stop-command
+```
+
+### 2. The command file: `commands/stop.md`
+
+Claude Code turns each Markdown file in a plugin's `commands/` folder into a slash command, named `<plugin>:<file name>`, so `commands/stop.md` becomes `/stockwatcher:stop`.
+
+```markdown
+---
+description: Stop the Stockwatcher dashboard server running on this computer
+allowed-tools: Bash(node:*)
+---
+
+The Stockwatcher stop command was run:
+
+!`node "${CLAUDE_PLUGIN_ROOT}/skills/stockwatcher/scripts/stockwatcher.mjs" --stop`
+
+Tell the person in one sentence what the output above says: ...
+```
+
+- **The `!` line** runs when the command is invoked, before the model sees the prompt, and the output takes its place. Stopping doesn't depend on Claude choosing to run anything.
+- **`allowed-tools: Bash(node:*)`** lets that line run without a permission prompt.
+- **`${CLAUDE_PLUGIN_ROOT}`** expands to the installed plugin folder, so the command keeps working when the version folder changes (`…/3.10.3/` to `…/3.10.4/`).
+- **`--stop`** (in `scripts/stockwatcher.mjs`) calls `/api/stop` on every Stockwatcher server on ports 4317–4326. The server saves its price cache and exits. It prints `Stockwatcher stopped.` or `Stockwatcher was not running.`.
+
+### 3. Version bump to 3.10.4
+
+Claude Code only offers an update when the version number goes up. Four files carry it, and all four were changed:
+
+- `.claude-plugin/plugin.json` (Claude Code)
+- `.codex-plugin/plugin.json` (Codex)
+- `plugin.json` (portable manifest)
+- `skills/stockwatcher/scripts/lib/home.mjs` (`VERSION`, which the launcher compares with `/api/health`)
+
+Because of the `VERSION` bump, the first 3.10.4 dashboard request replaces a running 3.10.3 server (see "Does the skill start a server for every request?").
+
+### 4. README
+
+`README.md` mentions `/stockwatcher:stop` after the install steps and lists `commands/stop.md` under Layout.
+
+### 5. Checks
+
+- `claude plugin validate .` passed. It also reported that the plugin has no LICENSE file. That was already true and only matters for submitting to the plugin directory.
+- While preparing the commit, something (probably a formatter) had changed two existing lines of `NOTES.md` (quote style, and `*` to `_`). Those were restored, so the diff only adds new sections.

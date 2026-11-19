@@ -1,6 +1,6 @@
 {
   "name": "stockwatcher",
-  "version": "3.10.3",
+  "version": "3.10.4",
   "description": "Live stock-market dashboard and heat map in the browser, steered from the chat: indices, sectors, themes, companies, investor 13F portfolios, r/wallstreetbets, and questions about companies researched once and remembered. Learns your portfolio and usual requests. No API keys. By AI Realist.",
   "author": {
     "name": "Maria Sukhareva",
