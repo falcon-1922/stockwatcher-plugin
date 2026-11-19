@@ -208,3 +208,44 @@ Because of the `VERSION` bump, the first 3.10.4 dashboard request replaces a run
 
 - `claude plugin validate .` passed. It also reported that the plugin has no LICENSE file. That was already true and only matters for submitting to the plugin directory.
 - While preparing the commit, something (probably a formatter) had changed two existing lines of `NOTES.md` (quote style, and `*` to `_`). Those were restored, so the diff only adds new sections.
+
+### 6. Commit, PR and merge
+
+```
+git add -A
+git commit -m "Add /stockwatcher:stop slash command, bump to 3.10.4"
+git push -u origin stop-command
+gh pr create --base main --title "Add /stockwatcher:stop slash command (3.10.4)" ...
+gh pr merge 4 --merge --delete-branch
+git switch main && git pull
+```
+
+This was PR #4 on `falcon-1922/stockwatcher-plugin`, merged as `80aaf59`.
+
+### 7. Updating the installed plugin
+
+The `claude` CLI can do this from a terminal, so there's no need for the interactive `/plugin` menu:
+
+```
+claude plugin marketplace update stockwatcher   # re-clone the fork's marketplace
+claude plugin update stockwatcher@stockwatcher  # "updated from 3.10.3 to 3.10.4"
+```
+
+The new version is in `~/.claude/plugins/cache/stockwatcher/stockwatcher/3.10.4/`, next to the old `3.10.3/` folder. A running session loads the new command and skill path only after a restart.
+
+### 8. Test
+
+`/stockwatcher:stop` was run in a new headless session, which loads the freshly installed plugin:
+
+```
+claude -p "/stockwatcher:stop"
+```
+
+- **Before:** `/api/health` showed the old 3.10.3 server (PID 39795) on port 4317.
+- **Reply:** "I stopped the Stockwatcher server, so any open dashboard tab won't update anymore, and it'll start again the next time you ask for the dashboard."
+- **Server log:** `stop requested, stopping`.
+- **After:** `/api/health` didn't answer, and `lsof -iTCP:4317-4326 -sTCP:LISTEN` showed nothing listening.
+
+The next dashboard request starts a 3.10.4 server.
+
+This section was added in a follow-up PR, after the merge and the update.
