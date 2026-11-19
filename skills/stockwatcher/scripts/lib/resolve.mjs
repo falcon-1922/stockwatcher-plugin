@@ -90,7 +90,7 @@ function synonymList() {
 
 // "saudi market heat map" is not the S&P 500: its everyday aliases ("market heat map", "the
 // market") stand back when the words name a market outside the US.
-const SP500_EXPLICIT = /s&p|spx|spy|sp ?500|standard/;
+const SP500_EXPLICIT = /s&p|spx|spy|sp ?500|sp index|standard/;
 function themeFor(text, themes) {
   const foreign = marketSuffix(text);
   for (const t of themes) {
