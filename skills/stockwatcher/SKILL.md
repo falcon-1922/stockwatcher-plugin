@@ -31,6 +31,23 @@ After research, use the last line of the final run. The page also has a box and 
 
 **Windows:** a new request never replaces a dashboard that is open: it opens in a window (browser tab) of its own, and the output names it (`main`, `w2`, …). **A follow-up that changes the dashboard on screen** ("now add the banks", "remove Tesla", your research results) **needs `--window <name>` with the name from the last output**, for example `node "…/stockwatcher.mjs" --window w2 "now add the banks"`. Without it, the follow-up opens a new tab on its own.
 
+## Phones and cloud sessions
+
+When the person is not at the computer running the command, the `127.0.0.1` link opens nothing for them. That is the case when they ask from a phone (the Claude app, the ChatGPT/Codex app), on claude.ai, in Claude Code on the web, or in a Codex cloud task. The command detects Claude Code cloud sessions itself. For Codex cloud, pass `--snapshot`, or the person sets `STOCKWATCHER_SNAPSHOT=1` in the environment. Each answer then also writes **a snapshot**: one self-contained HTML page with the prices built in, and **a PNG of it** (`--screenshot` forces both anywhere). The output starts a `REMOTE SESSION` block with both paths. Add `--out "<folder>"` (your scratchpad, or the working directory) so they land where you can send or publish them.
+
+Show the dashboard with the first of these that works where you are:
+
+1. **Claude Code** (web, desktop, phone): publish the HTML file with the Artifact tool. It becomes a private claude.ai page that opens on any device. Publish the same file again for later views, to keep the link.
+2. **Anything that can show an image** (Codex and ChatGPT on a phone, Slack): send the PNG. In Claude Code use SendUserFile; in Codex, attach the image to the reply or show it inline.
+3. Otherwise send the HTML file: it opens in any browser.
+4. If nothing can be sent, describe what is on screen from the command's output.
+
+Never give such a person the `127.0.0.1` link. Tell them it is a snapshot of the prices now: it does not update by itself, and asking again makes a fresh one.
+
+**`NO PRICES`** in that block means this machine cannot reach the price feeds. Codex cloud tasks have no internet by default. Do not present the grey page as live. Tell the person, and propose turning on agent internet access for the listed price hosts.
+
+**A dashboard that stays live on a phone needs hosting.** In Codex on a phone or in the cloud, and whenever the person asks for a live dashboard they can open anywhere, tell them it has to run on a public host. Propose how, from [phones, cloud sessions and hosting](references/hosting.md): a Cloudflare Worker is the recommended way. The plugin does not include one yet, so do not claim it does, and do not set one up without their go-ahead.
+
 ## Saved dashboards
 
 "Save this dashboard", "save this as Moscow banks", "keep this view": pass the words as they are, with `--window <name>` of the dashboard meant (the last one shown if none is given). The command saves the request and every researched list in it, with how and where it was found, on this computer. The page's "Save this dashboard" button does the same. Tell the person the name it was saved under.
